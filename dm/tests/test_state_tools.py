@@ -62,7 +62,7 @@ def test_update_character_rejects_out_of_bounds(args):
 
 
 def test_quest_flag_validates_slug():
-    assert call(set_quest_flag, flag="met_marta", value="yes")[1] == [{"kind": "flag", "flag": "met_marta", "value": "yes"}]
+    assert call(set_quest_flag, flag="saw_the_diversion", value="yes")[1] == [{"kind": "flag", "flag": "saw_the_diversion", "value": "yes"}]
     content, staged = call(set_quest_flag, flag="Met Marta!", value="yes")
     assert "error" in content and staged == []
 
@@ -103,3 +103,19 @@ def test_enemy_attack_miss_stages_nothing(monkeypatch):
 def test_enemy_attack_rejects_silly_bonus():
     content, staged = call(enemy_attack, attacker="Dragon", attack_bonus=50, damage_die=6, damage_bonus=0)
     assert "error" in content and staged == []
+
+
+def test_move_to_gated_exit_is_barred_in_world():
+    gated = {**STATE, "location_id": "unity-archive", "flags": {}}
+    out = move_to.invoke({"name": "move_to", "args": {"location_id": "spark-forge", "state": gated},
+                          "id": "c1", "type": "tool_call"})
+    content = json.loads(out.update["messages"][0].content)
+    assert "barred" in content["error"] and "Aldric" in content["error"]
+    assert "staged" not in out.update
+
+
+def test_set_quest_flag_rejects_non_canonical():
+    content, staged = call(set_quest_flag, flag="met_marta", value="yes")
+    assert "unknown story flag" in content["error"] and staged == []
+    content, staged = call(set_quest_flag, flag="ending", value="victory")
+    assert "must be one of" in content["error"] and staged == []

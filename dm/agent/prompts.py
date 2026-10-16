@@ -1,5 +1,6 @@
 """Prompts for the Dungeon Master. Kept separate so they're easy to read and tune."""
 
+from rpg.campaign import story_so_far
 from rpg.state import GameState
 from rpg.world import LOCATIONS
 
@@ -20,6 +21,8 @@ set_quest_flag to record story progress; set_npc_disposition when the player hel
 someone present. Use resolve_attack when the player attacks and enemy_attack when something \
 attacks the player. Never just say HP or gold changed without the tool.
 - Use remember to note a lasting fact about the player (a promise, a betrayal, a friendship) when it happens.
+
+Story so far: {story}
 
 The player character:
 {character}
@@ -63,6 +66,7 @@ def render_dm_system(game: GameState, memories: list[str] = ()) -> str:
     ) or "- nobody of note"
     return DM_SYSTEM.format(
         character=sheet,
+        story=story_so_far(game.flags, game.location_id),
         location_name=here.name,
         location_description=here.description,
         exits=", ".join(f"{LOCATIONS[e].name} ({e})" for e in here.exits) or "none",

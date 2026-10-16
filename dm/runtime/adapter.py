@@ -99,7 +99,8 @@ def game_snapshot(game) -> dict:
         "character": game.character.model_dump(),
         "location_id": game.location_id,
         "location_name": here.name,
-        "exits": [{"id": e, "name": LOCATIONS[e].name} for e in here.exits if e in LOCATIONS],
+        "exits": [{"id": e, "name": LOCATIONS[e].name, "open": here.barrier(e, game.flags) is None}
+                  for e in here.exits if e in LOCATIONS],
         "flags": dict(game.flags),
         "npcs": [{"npc_id": n.npc_id, "name": n.name, "disposition": n.disposition} for n in game.npcs],
         "traces_url": f"https://{host}/ml/experiments/{exp}/traces" if host and exp else None,
