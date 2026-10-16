@@ -9,6 +9,10 @@ agentbricks --profile <your-profile> dev
 ./scripts/smoke_turns.sh   # plays three turns
 ```
 
+Lore lookups need the AI Search index from the repo root's `make deploy`. Set `LORE_INDEX` in
+`.env` to the index name it prints. Without it, `search_lore` returns an error and the DM
+improvises.
+
 Each response includes a `turn` object (narration, choices, location, events). The SSE stream
 emits `node` events (load_state → dm_reason → tools → compose) and a final `turn` event.
 
