@@ -1,3 +1,19 @@
+# Databricks Adventure: Dungeon Master agent
+
+The DM is an Agent Bricks LangGraph agent. Run it locally:
+
+```bash
+cp .env.example .env   # set DATABRICKS_CONFIG_PROFILE to your profile
+uv sync
+agentbricks --profile <your-profile> dev
+./scripts/smoke_turns.sh   # plays three turns
+```
+
+Each response includes a `turn` object (narration, choices, location, events). The SSE stream
+emits `node` events (load_state → dm_reason → tools → compose) and a final `turn` event.
+
+---
+
 # LangGraph agent template
 
 A LangGraph agent served by `databricks_agentkit.DurableAgentServer`. The managed runtime keeps invocation state and events in
