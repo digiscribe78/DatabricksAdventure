@@ -1,0 +1,28 @@
+# The world's table of contents. The ingest job uses `documents` to tag every lore chunk, and
+# the DM's `rpg.world.LOCATIONS` must match `locations` (enforced by dm/tests/test_manifest_sync.py).
+documents:
+  - file: world-primer.md
+    doc_type: primer
+    location_id: global
+  - file: rules.md
+    doc_type: rules
+    location_id: global
+  - file: bestiary.md
+    doc_type: bestiary
+    location_id: global
+  - file: medallion-inn.md
+    doc_type: location
+    location_id: medallion-inn
+  - file: delta-crossing.md
+    doc_type: location
+    location_id: delta-crossing
+
+locations:
+  - id: medallion-inn
+    name: The Medallion Inn, Lakehouse Village
+    lorebook: medallion-inn.md
+    exits: [delta-crossing]
+  - id: delta-crossing
+    name: The Delta Crossing
+    lorebook: delta-crossing.md
+    exits: [medallion-inn]

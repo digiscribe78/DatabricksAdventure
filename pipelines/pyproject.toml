@@ -1,0 +1,21 @@
+[project]
+name = "databricks-adventure-pipelines"
+version = "0.1.0"
+description = "Build-time and job-time pipelines for Databricks Adventure lore"
+requires-python = ">=3.11"
+dependencies = [
+    "markdown>=3.6",
+    "fpdf2>=2.8",
+    "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.uv]
+default-groups = ["dev"]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

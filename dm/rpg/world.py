@@ -83,6 +83,16 @@ LOCATIONS: dict[str, Location] = {
         ),
         exits=("delta-crossing",),
     ),
+    "delta-crossing": Location(
+        id="delta-crossing",
+        name="The Delta Crossing",
+        description=(
+            "A wide, cold ford where the river Delta runs in visible layers, each current a "
+            "different day. A rope ferry worked by a silent ferryman called the Sweeper crosses "
+            "to the road for the Unity Archive. Upstream stand the broken piers of the old bridge."
+        ),
+        exits=("medallion-inn",),
+    ),
 }
 
 DEFAULT_CHARACTER = new_character("Brannoc", "warrior")

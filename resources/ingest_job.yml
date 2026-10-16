@@ -1,0 +1,26 @@
+resources:
+  jobs:
+    ingest_lore:
+      name: databricks-adventure-ingest-lore
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "3"
+            dependencies:
+              - pyyaml>=6.0
+      tasks:
+        - task_key: ingest
+          environment_key: default
+          spark_python_task:
+            python_file: ../pipelines/ingest_job.py
+            parameters:
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --endpoint
+              - ${var.search_endpoint}
+              - --embedding-endpoint
+              - ${var.embedding_endpoint}
+              - --src
+              - ${workspace.file_path}/pipelines

@@ -17,10 +17,11 @@ turn() {
   echo "$out" | jq -e '.output.turn.narration | length > 0' >/dev/null || { echo "FAIL: no narration"; echo "$out"; exit 1; }
   echo "$out" | jq -e '.output.turn.choices | length >= 2' >/dev/null || { echo "FAIL: <2 choices"; echo "$out"; exit 1; }
   echo "--- turn: ${content:-<opening>}"
-  echo "$out" | jq -r '.output.turn.narration, (.output.turn.choices[] | "  > " + .), (.output.turn.events[] | "  🎲 " + .summary)'
+  echo "$out" | jq -r '.output.turn.narration, (.output.turn.choices[] | "  > " + .), (.output.turn.events[] | (if .type == "roll" then "  🎲 " else "  📚 " end) + .summary)'
 }
 
 turn ""
 turn "I try to charm Marta into telling me why the Archive is sealed."
+turn "I ask Marta who works the ferry at the Delta Crossing, and what he is like."
 turn "I head for the door to the Delta Crossing."
 echo "SMOKE OK (session $SESSION)"
