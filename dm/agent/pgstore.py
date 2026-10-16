@@ -106,6 +106,12 @@ class PostgresStore:
                               max_hp=max_hp, xp=xp, gold=gold, inventory=inventory)
         return GameState(character=character, location_id=location_id, flags=flags, npcs=npcs)
 
+    def owner(self, session_id):
+        with self._connect() as conn:
+            row = conn.execute("SELECT c.player_id FROM rpg.adventures a JOIN rpg.characters c ON c.id = a.character_id "
+                               "WHERE a.id = %s", (session_id,)).fetchone()
+        return row[0] if row else None
+
     def commit(self, session_id, state):
         c = state.character
         with self._connect() as conn:

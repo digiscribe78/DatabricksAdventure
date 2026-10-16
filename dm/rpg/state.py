@@ -61,6 +61,9 @@ _CHANGES = TypeAdapter(list[Change])
 
 def _apply_character(state: GameState, ch: CharacterChange, notes: list[str]) -> None:
     c = state.character
+    if ch.items_add and ch.gold_delta < 0 and c.gold + ch.gold_delta < 0:
+        notes.append(f"could not afford {', '.join(ch.items_add)}: wanted {-ch.gold_delta} gold, had {c.gold}")
+        return
     if ch.hp_delta:
         new_hp = max(0, min(c.max_hp, c.hp + ch.hp_delta))
         notes.append(f"HP {c.hp} → {new_hp}")
@@ -98,11 +101,19 @@ def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, lis
     parsed = _CHANGES.validate_python(changes)
     new = state.model_copy(deep=True)
     notes: list[str] = []
+    downed = False
     for ch in parsed:
+        if downed and isinstance(ch, CharacterChange) and ch.hp_delta < 0:
+            notes.append("already downed, further harm ignored")
+            ch = ch.model_copy(update={"hp_delta": 0})
+        if downed and isinstance(ch, MoveChange):
+            notes.append(f"already downed, stayed at {LOCATIONS[new.location_id].name}")
+            continue
         if isinstance(ch, CharacterChange):
             _apply_character(new, ch, notes)
-            if new.character.hp == 0:
+            if new.character.hp == 0 and not downed:
                 _downed(new, notes)
+                downed = True
         elif isinstance(ch, FlagChange):
             new.flags[ch.flag] = ch.value
             notes.append(f"flag {ch.flag} = {ch.value}")

@@ -328,3 +328,61 @@ def test_system_prompt_includes_npc_card_and_exits():
     assert "Marta Quill" in system and "disposition +0" in system
     assert "The Delta Crossing (delta-crossing)" in system
     assert "Defence 13" in system
+
+
+def test_reload_failure_after_successful_commit_is_not_reported_as_failure():
+    class FlakyReload(InMemoryStore):
+        loads = 0
+
+        def load(self, sid):
+            FlakyReload.loads += 1
+            if FlakyReload.loads == 2:  # 1st = load_state, 2nd = reload after commit
+                raise ConnectionError("blip")
+            return super().load(sid)
+
+    store = FlakyReload(load_npc_cards(NPCS))
+    store.create_adventure("t1", "p", "Brannoc", "warrior")
+    FlakyReload.loads = 0
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("update_character", gold_delta=-2, items_add=["lantern"])]),
+                 AIMessage(content="d")],
+        structured=[PROSE],
+    )
+    turn = run(make(model, STATE_TOOLS, store), "I buy a lantern.")["turn"]
+    assert turn["narration"] == PROSE.narration
+    assert turn["events"][-1]["type"] == "state"
+    assert store.load("t1").character.gold == 10
+
+
+def test_reason_failure_after_staged_change_commits_nothing():
+    store = new_store()
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("update_character", gold_delta=-2)]), RuntimeError("429"),
+                 AIMessage(content="ok")],
+        structured=[PROSE],
+    )
+    graph = make(model, STATE_TOOLS, store)
+    turn = run(graph, "I pay.")["turn"]
+    assert turn["narration"] == FALLBACK_NARRATION and turn["events"] == []
+    assert store.load("t1").character.gold == 12
+    run(graph, "Again.")
+    assert not any(isinstance(m, ToolMessage) for m in model.reason_calls[-1])
+
+
+def test_compose_is_told_what_state_was_applied():
+    store = new_store()
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("update_character", hp_delta=-30)]), AIMessage(content="d")],
+        structured=[PROSE],
+    )
+    run(make(model, STATE_TOOLS, store), "I leap off the bridge.")
+    compose_system = model.structured_calls[0][0].content
+    assert "downed" in compose_system and "HP 18 → 0" in compose_system
+
+
+def test_turn_for_another_players_adventure_is_refused():
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    graph = make(model)
+    with pytest.raises(PermissionError):
+        graph.invoke({"messages": [{"role": "user", "content": "hi"}]},
+                     {"configurable": {"thread_id": "t1", "actor_id": "someone-else"}})

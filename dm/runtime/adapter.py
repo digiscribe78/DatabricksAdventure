@@ -71,6 +71,9 @@ def _ensure_adventure(payload: dict[str, Any], session_id: str, actor: str) -> N
     """Create the adventure on new_game (idempotent for replays); otherwise require one to exist."""
     store = agent_module.game_store()
     new_game = _new_game(payload)
+    owner = store.owner(session_id)
+    if owner is not None and owner != actor:
+        raise PermissionError("this adventure belongs to another player")
     if store.load(session_id) is not None:
         return
     if new_game is None:

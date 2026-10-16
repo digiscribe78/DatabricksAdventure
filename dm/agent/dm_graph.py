@@ -142,9 +142,16 @@ def compose_turn(
     location_id: str,
     events: list[TurnEvent],
     previous_choices: list[str] | None,
+    applied: list[str] | None = None,
 ) -> TurnOutput:
     structured = llm.with_structured_output(ComposeOutput)
-    prompt = [SystemMessage(COMPOSE_SYSTEM), *_sendable(messages)]
+    system = COMPOSE_SYSTEM
+    if applied:
+        system += (
+            "\n\nState changes applied this turn (narrate consistently with these; if the player was "
+            f"downed they collapse and wake at the Medallion Inn): {'; '.join(applied)}"
+        )
+    prompt = [SystemMessage(system), *_sendable(messages)]
     for _ in range(2):  # one attempt plus one repair retry
         try:
             result = structured.invoke(prompt)
@@ -169,6 +176,9 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         return config["configurable"]["thread_id"]
 
     def load_state(state: DMState, config: RunnableConfig) -> dict:
+        actor = config["configurable"].get("actor_id")
+        if actor is not None and store.owner(_sid(config)) not in (None, actor):
+            raise PermissionError("this adventure belongs to another player")
         game = store.load(_sid(config))
         if game is None:
             raise LookupError(f"no adventure for session {_sid(config)}")
@@ -195,34 +205,37 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
 
     def commit_state(state: DMState, config: RunnableConfig) -> dict:
         staged = state.get("staged") or []
-        if not staged:
+        if not staged or state.get("reason_failed"):  # an aborted turn commits nothing
             return {}
         try:
             new, summaries = apply_changes(_game(state), staged)
             store.commit(_sid(config), new)
-            game = store.load(_sid(config))
         except Exception:  # noqa: BLE001 - rolled back by the store; the turn reports failure in-world
             logger.warning("commit_state failed", exc_info=True)
             return {"commit_failed": True}
+        try:
+            game = store.load(_sid(config))  # authoritative, and refreshes who is here after a move
+        except Exception:  # noqa: BLE001 - the commit landed; fall back to the state we just wrote
+            logger.warning("reload after commit failed", exc_info=True)
+            game = new
         return {**_game_update(game), "state_summaries": summaries}
 
     def compose(state: DMState) -> dict:
         messages = state["messages"]
         previous = (state.get("turn") or {}).get("choices")
         events = turn_events(messages)
-        if state.get("commit_failed"):
+        if state.get("commit_failed") or state.get("reason_failed"):
             turn = fallback_turn(state["location_id"], [], previous)
-            turn.narration = COMMIT_FAILED_NARRATION
+            if state.get("commit_failed"):
+                turn.narration = COMMIT_FAILED_NARRATION
             removals = [RemoveMessage(id=m.id) for m in _current_turn(messages)
                         if not isinstance(m, HumanMessage)]
         else:
             if state.get("state_summaries"):
                 events.append(TurnEvent(type="state", summary="; ".join(state["state_summaries"]),
                                         detail={"changes": state.get("staged") or []}))
-            if state.get("reason_failed"):
-                turn = fallback_turn(state["location_id"], events, previous)
-            else:
-                turn = compose_turn(llm, messages, state["location_id"], events, previous)
+            turn = compose_turn(llm, messages, state["location_id"], events, previous,
+                                applied=state.get("state_summaries"))
             removals = [RemoveMessage(id=messages[-1].id)] if isinstance(messages[-1], AIMessage) else []
         text = turn.narration + "\n\n" + "\n".join(f"- {c}" for c in turn.choices)
         return {"turn": turn.model_dump(), "messages": [*removals, AIMessage(content=text)],

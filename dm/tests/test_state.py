@@ -35,10 +35,28 @@ def test_items_add_remove_and_missing_item_noted():
     assert any("crown" in n and "not carried" in n for n in notes)
 
 
-def test_gold_cannot_go_negative():
+def test_gold_loss_without_purchase_clamps_to_zero():
     s, notes = apply_changes(state(), [{"kind": "character", "gold_delta": -50}])
     assert s.character.gold == 0
     assert any("only had 12" in n for n in notes)
+
+
+def test_unaffordable_purchase_is_refused_entirely():
+    s, notes = apply_changes(state(), [{"kind": "character", "gold_delta": -50, "items_add": ["warhorse"]}])
+    assert s.character.gold == 12 and "warhorse" not in s.character.inventory
+    assert any("could not afford warhorse" in n for n in notes)
+
+
+def test_two_lethal_hits_down_only_once():
+    s, notes = apply_changes(state(), [{"kind": "character", "hp_delta": -20}, {"kind": "character", "hp_delta": -20}])
+    assert (s.character.hp, s.character.gold, s.flags["times_downed"]) == (9, 6, "1")
+    assert sum("downed:" in n for n in notes) == 1 and any("already downed" in n for n in notes)
+
+
+def test_move_after_being_downed_is_ignored():
+    s, notes = apply_changes(state(), [{"kind": "character", "hp_delta": -20}, {"kind": "move", "location_id": "delta-crossing"}])
+    assert s.location_id == "medallion-inn"
+    assert any("already downed" in n for n in notes)
 
 
 def test_xp_and_flag():

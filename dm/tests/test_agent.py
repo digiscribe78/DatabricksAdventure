@@ -138,7 +138,7 @@ async def test_recovery_replays_input_without_current_checkpoint(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_adapter_calls_same_run_agent_for_invoke_and_recovery(monkeypatch, mem_store):
-    mem_store.create_adventure("runtime-session", "p", "Brannoc", "warrior")
+    mem_store.create_adventure("runtime-session", "runtime-session", "Brannoc", "warrior")  # actor defaults to the session id
     import agent.agent as agent_module
     import runtime.adapter as adapter
     from langgraph.checkpoint.memory import InMemorySaver
@@ -238,7 +238,7 @@ async def test_serialize_events_tolerates_none_node_update():
 
 @pytest.mark.asyncio
 async def test_invoke_returns_turn(monkeypatch, mem_store):
-    mem_store.create_adventure("s-1", "p", "Brannoc", "warrior")
+    mem_store.create_adventure("s-1", "s-1", "Brannoc", "warrior")  # actor defaults to the session id
     import runtime.adapter as adapter
 
     turn = {"narration": "n", "choices": ["a", "b"], "allow_free_text": True,
@@ -358,3 +358,13 @@ def test_game_store_falls_back_to_memory_without_pghost(monkeypatch):
     monkeypatch.setattr(agent_module, "_store", None)
     store = agent_module.game_store()
     assert isinstance(store, InMemoryStore) and store is agent_module.game_store()
+
+
+@pytest.mark.asyncio
+async def test_other_players_session_is_rejected(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    mem_store.create_adventure("s-taken", "owner", "Brannoc", "warrior")
+    with pytest.raises(PermissionError):
+        await invoke({"messages": [{"role": "user", "content": "hi"}], "actor": "intruder"}, ctx("s-taken"))
+    assert capture_run == []

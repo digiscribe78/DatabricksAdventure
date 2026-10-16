@@ -90,3 +90,9 @@ def test_list_and_delete(store, sid):
                        "location_id": "medallion-inn", "status": "active"}]
     store.delete_adventure(sid)
     assert store.load(sid) is None
+
+
+def test_owner_is_the_creating_player(store, sid):
+    assert store.owner(sid) is None
+    store.create_adventure(sid, "player-1", "Brannoc", "warrior")
+    assert store.owner(sid) == "player-1"
