@@ -49,3 +49,15 @@ describe('game view reducer', () => {
     expect(v.history.at(-1)).toBe('n14');
   });
 });
+
+describe('retry', () => {
+  it('remembers the request that failed so Try again can resend it exactly', () => {
+    const opening = { newGame: { name: 'Wren', archetype: 'bard' as const } };
+    let v = startTurn(newView('s1'), 0, undefined, opening);
+    v = failTurn(v, 'The connection to the realm faltered mid-turn.');
+    expect(v.lastRequest).toEqual(opening);
+    v = startTurn(v, 10, 'I wade in', { message: 'I wade in' });
+    v = failTurn(v, 'x');
+    expect(v.lastRequest).toEqual({ message: 'I wade in' });
+  });
+});

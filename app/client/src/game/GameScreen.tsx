@@ -14,7 +14,7 @@ export function GameScreen({ sessionId, newGame, onQuit }: {
   const started = useRef(false);
 
   const send = useCallback(async (input: TurnRequest, playerText?: string) => {
-    setView((v) => startTurn(v, Date.now(), playerText));
+    setView((v) => startTurn(v, Date.now(), playerText, input));
     try {
       await playTurn(sessionId, input, (e) => setView((v) => applyEvent(v, e, Date.now())));
     } catch (err) {
@@ -49,7 +49,10 @@ export function GameScreen({ sessionId, newGame, onQuit }: {
           {view.narration ? view.narration.split('\n\n').map((p) => <p key={p}>{p}</p>) : <p className="pending">The mists part…</p>}
           {view.error && (
             <p className="warn">
-              {view.error} <button className="bbtn inline" onClick={() => act(text || 'I look around')}>Try again</button>
+              {view.error}{' '}
+              {view.lastRequest && (
+                <button className="bbtn inline" disabled={view.busy} onClick={() => view.lastRequest && void send(view.lastRequest)}>Try again</button>
+              )}
             </p>
           )}
           {view.gameOver && <p className="game-over">— {view.gameOver === 'victory' ? 'Victory!' : 'Your tale ends here.'} —</p>}

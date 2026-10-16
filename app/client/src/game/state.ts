@@ -30,6 +30,11 @@ const TurnData = z.object({
 });
 const GameData = z.object({ game: GameSnapshotSchema });
 
+export interface LastRequest {
+  message?: string;
+  newGame?: { name: string; archetype: 'warrior' | 'mage' | 'bard' };
+}
+
 export interface GameView {
   sessionId: string;
   narration: string;
@@ -43,6 +48,7 @@ export interface GameView {
   elapsedMs?: number;
   gameOver?: string | null;
   history: string[];
+  lastRequest?: LastRequest; // what Try again resends: the exact request that failed
 }
 
 const HISTORY_LIMIT = 20;
@@ -52,9 +58,9 @@ export const newView = (sessionId: string): GameView => ({
   sessionId, narration: '', choices: [], events: [], nodes: [], busy: false, history: [],
 });
 
-export function startTurn(v: GameView, now: number, playerText?: string): GameView {
+export function startTurn(v: GameView, now: number, playerText?: string, request?: LastRequest): GameView {
   return {
-    ...v, busy: true, error: undefined, nodes: [], events: [], startedAt: now, elapsedMs: undefined,
+    ...v, lastRequest: request ?? v.lastRequest, busy: true, error: undefined, nodes: [], events: [], startedAt: now, elapsedMs: undefined,
     history: playerText ? keep([...v.history, `> ${playerText}`]) : v.history,
   };
 }

@@ -14,7 +14,9 @@ type Headers = Record<string, string | string[] | undefined>;
 
 export function userToken(headers: Headers, env: Env = process.env): string {
   const forwarded = headers['x-forwarded-access-token'];
-  const token = (Array.isArray(forwarded) ? forwarded[0] : forwarded) || env.DM_DEV_TOKEN;
+  // DM_DEV_TOKEN is for local `make app-dev` only: a deployed app must never act as the developer.
+  const deployed = env.NODE_ENV === 'production' || Boolean(env.DATABRICKS_APP_NAME);
+  const token = (Array.isArray(forwarded) ? forwarded[0] : forwarded) || (deployed ? undefined : env.DM_DEV_TOKEN);
   if (!token) {
     // Never fall back to the app's own identity: every player would become the same player.
     throw new HttpError(401, 'No player token: open the game through Databricks Apps (or set DM_DEV_TOKEN locally).');

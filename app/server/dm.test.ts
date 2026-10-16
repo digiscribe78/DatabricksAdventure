@@ -77,3 +77,13 @@ describe('resolveDmUrl', () => {
     expect(normaliseHost('https://ws.example/')).toBe('https://ws.example');
   });
 });
+
+describe('userToken in production', () => {
+  it('ignores DM_DEV_TOKEN when running as a deployed app', () => {
+    expect(() => userToken({}, { DM_DEV_TOKEN: 'dev', DATABRICKS_APP_NAME: 'databricks-adventure' })).toThrow(HttpError);
+    expect(() => userToken({}, { DM_DEV_TOKEN: 'dev', NODE_ENV: 'production' })).toThrow(HttpError);
+  });
+  it('still uses the forwarded token in production', () => {
+    expect(userToken({ 'x-forwarded-access-token': 'u' }, { DM_DEV_TOKEN: 'dev', NODE_ENV: 'production' })).toBe('u');
+  });
+});
