@@ -41,7 +41,7 @@ memory-pipeline:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
 	cd dm && STORE=$$(grep -A1 '^\[memory_store\]' agent.toml | sed -n 's/name = "\(.*\)"/\1/p') && \
 	SESS=$$(grep -A1 '^\[session_store\]' agent.toml | sed -n 's/name = "\(.*\)"/\1/p') && \
-	(agentbricks --profile $(PROFILE) memory pipeline list | grep -q dm-dreamer || \
+	(COLUMNS=250 agentbricks --profile $(PROFILE) memory pipeline list | grep -q "$$STORE" || \
 	 agentbricks --profile $(PROFILE) memory pipeline create --memory-store $$STORE --session-store $$SESS \
 	   --display-name dm-dreamer --instructions @../content/dreamer-instructions.md --trigger manual)
 
