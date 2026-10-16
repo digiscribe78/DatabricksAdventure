@@ -1,0 +1,5 @@
+resources:
+  vector_search_endpoints:
+    lore_search:
+      name: ${var.search_endpoint}
+      endpoint_type: STANDARD

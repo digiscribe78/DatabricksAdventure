@@ -1,0 +1,29 @@
+bundle:
+  name: databricks-adventure
+
+variables:
+  catalog:
+    description: Unity Catalog catalog to create the game schema in (you need CREATE SCHEMA on it)
+  schema:
+    description: Schema for all game data
+    default: databricks_adventure
+  search_endpoint:
+    description: AI Search endpoint for the lore index
+    default: databricks-adventure-search
+  embedding_endpoint:
+    description: Embedding model endpoint used by the lore index
+    default: databricks-gte-large-en
+
+sync:
+  exclude:
+    - "dm/**"
+    - "content/**"
+    - "docs/**"
+    - "build/**"
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    default: true

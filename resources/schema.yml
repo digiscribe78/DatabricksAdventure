@@ -1,0 +1,13 @@
+resources:
+  schemas:
+    adventure:
+      catalog_name: ${var.catalog}
+      name: ${var.schema}
+      comment: Databricks Adventure game data (lore, chunks, index)
+  volumes:
+    lore:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.adventure.name}
+      name: lore
+      volume_type: MANAGED
+      comment: Lorebook PDFs and the world manifest

@@ -102,9 +102,9 @@ Each node emits a `node_start`/`node_end` event through `context.emit` for the c
 
 | Tool | Behaviour | Implementation |
 |---|---|---|
-| `roll_check(stat, dc, modifier)` | d20 + modifier vs DC → `{roll, total, dc, success, margin}` | Local tool backed by rpg.rules in M1; promoted to a UC Python function (uc_function binding, auth = "app") in M2 |
+| `roll_check(stat, dc, modifier)` | d20 + modifier vs DC → `{roll, total, dc, success, margin}` | Local tool backed by rpg.rules (M1–M2). Promoted to a UC Python function in M3, when the function can read the character's modifier from Lakebase itself, so the model never supplies it. |
 | `resolve_attack(attack_mod, defence, damage_die, damage_bonus)` | One combat exchange → `{roll, total, hit, damage}` | UC Python function |
-| `search_lore(query, location_id)` | Top-k chunks filtered to `location_id` ∪ global docs → `[{text, source, page, doc_type}]` | Agent-side Python using the AI Search client (see §11 Q1) |
+| `search_lore(query)` | Top-4 chunks filtered to the current location, its exits and the global docs (location read from state, never from the model) → `{query, passages: [{text, source, page, doc_type, location_id}]}` | Agent-side Python using the AI Search client (see §11 Q1) |
 | `update_character(hp_delta, xp_delta, items_add, items_remove)` | Stages changes for `commit_state` | Agent-side, staged in graph state |
 | `set_quest_flag(flag, value)` | Stages a flag change | Agent-side, staged |
 | `set_npc_disposition(npc_id, delta)` | Stages a disposition change (clamped −3…+3) | Agent-side, staged |
@@ -180,11 +180,11 @@ Authoring: Cog drafts the lorebooks and NPC cards, and Mike edits them. Images a
 2. `ai_parse_document` parses the PDFs into structured text.
 3. A heading-aware chunker produces one chunk per section, prefixed with its heading path (e.g. "The Delta Crossing › Dangers").
 4. The output is written to the Delta table `lore_chunks(chunk_id, chunk_text, doc_type, location_id, source, page)`.
-5. An AI Search Delta Sync index (managed embeddings, **Triggered** sync) is built on `lore_chunks`.
+5. The ingest job creates the AI Search Delta Sync index on `lore_chunks` if it doesn't exist (managed embeddings, **Triggered** sync), otherwise triggers a sync. The endpoint is a bundle resource. The index isn't, because its source table must exist first.
 
 ### 6.3 Retrieval
 
-`search_lore` uses a semantic query with the filter `location_id = current OR doc_type IN ('primer','rules','bestiary')` and returns the top 4. The curtain shows each chunk with its source and page.
+`search_lore` uses a semantic query with the filter `location_id IN (current, ...exits of current, 'global')` and returns the top 4. Global docs (primer, rules, bestiary) carry `location_id = 'global'`, and including the exits lets rumours about the next place be found from where you stand. The curtain shows each chunk with its source and page.
 
 ## 7. State and data model
 
@@ -265,8 +265,8 @@ When a policy blocks an interaction, `guardrail_gate` turns it into an in-world 
 
 ## 11. Open questions to resolve during planning
 
-1. **`search_lore` binding.** `agent.toml` documents `mcp` sources but not an AI Search index binding. Plan: agent-side Python using the AI Search client, plus a resource grant to the agent's service principal. If a managed AI Search MCP service is bindable via `kind = "mcp"`, switch to it. Decide during the skeleton milestone.
-2. **AI Search endpoint type.** Use whichever of standard or storage-optimised has the lower per-unit price on the current pricing page. Both are far beyond our size, at a few hundred chunks.
+1. **`search_lore` binding.** `agent.toml` documents `mcp` sources but not an AI Search index binding. Plan: agent-side Python using the AI Search client, plus a resource grant to the agent's service principal. If a managed AI Search MCP service is bindable via `kind = "mcp"`, switch to it. Decide during the skeleton milestone. Resolved (M2): agent-side tool. No managed AI Search MCP service is available.
+2. **AI Search endpoint type.** Use whichever of standard or storage-optimised has the lower per-unit price on the current pricing page. Both are far beyond our size, at a few hundred chunks. M2 uses STANDARD for query latency. Confirm pricing before release.
 3. **Unity Gateway policy configuration.** Confirm whether the policies can be scripted (CLI/API) for `make deploy`, or need documented one-time UI steps.
 4. **Game app → agent auth.** Confirm the exact mechanism for calling an Agent Runtime endpoint with the forwarded user token from another app, and the permission grant the app needs.
 
