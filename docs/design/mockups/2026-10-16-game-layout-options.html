@@ -1,0 +1,77 @@
+<h2>Game screen — where does the "curtain" live?</h2>
+<p class="subtitle">Same content in each: scene image, narration, choices, character sheet, and the behind-the-curtain panel (graph + events + trace link). Pick the one that best balances <em>playing</em> with <em>learning</em>.</p>
+
+<style>
+  .scene { background: linear-gradient(135deg,#2b3a4a,#4b6a5a); color:#eee; border-radius:6px; display:flex; align-items:flex-end; padding:8px; font-size:11px; min-height:90px; }
+  .narr { font-size:11px; line-height:1.4; padding:6px 0; }
+  .choice { border:1px solid #888; border-radius:4px; padding:3px 6px; margin:3px 0; font-size:10px; }
+  .curtain { background:#14161a; color:#9fe0a8; font-family:monospace; font-size:9.5px; border-radius:6px; padding:6px; line-height:1.5; }
+  .curtain .node { display:inline-block; border:1px solid #3c6; border-radius:3px; padding:0 4px; margin:1px; }
+  .curtain .node.on { background:#3c6; color:#111; }
+  .sheet { font-size:10px; border:1px dashed #999; border-radius:6px; padding:6px; line-height:1.5; }
+  .row { display:flex; gap:8px; }
+  .lbl { font-size:9px; text-transform:uppercase; opacity:.6; margin-bottom:2px; }
+</style>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Split screen — curtain always visible (right)</h3>
+      <p>The story on the left, the machinery on the right. Learning is front and centre; a collapse button hides the curtain for "just play" mode.</p>
+      <div class="mockup"><div class="mockup-header">Split</div><div class="mockup-body">
+        <div class="row">
+          <div style="flex:3">
+            <div class="scene">🏞 The Delta Crossing</div>
+            <div class="narr">The river runs in versioned layers, each current a different day. A ferryman eyes your satchel…</div>
+            <div class="choice">1. Pay the ferryman</div><div class="choice">2. Wade across (Might DC 12)</div><div class="choice">3. Ask about the old bridge</div>
+            <input class="mock-input" placeholder="…or type what you do" style="font-size:10px">
+            <div class="sheet" style="margin-top:6px">⚔ Brannoc · Pipeline Warden · HP 14/18 · Might +3 Wits +0 Charm +1</div>
+          </div>
+          <div style="flex:2">
+            <div class="lbl">Behind the curtain</div>
+            <div class="curtain">
+              <span class="node">guardrail</span><span class="node">load_state</span><span class="node on">dm_reason</span><span class="node">tools</span><span class="node">compose</span><span class="node">commit</span><br><br>
+              ▶ search_lore("ferryman") → 3 chunks<br>&nbsp;&nbsp;delta-crossing.pdf p.2<br>
+              ▶ roll_check(might, 12) → 🎲 9+3 = 12 ✅<br>
+              ▶ update_character(hp −0)<br>
+              🧠 memory: "spared the thief"<br>
+              tokens 2.1k · 1.8s · <u>open trace ↗</u>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Immersive game — curtain as a pull-up drawer</h3>
+      <p>Full-bleed scene, game feel first. A "🔍 Behind the curtain" tab pulls up a drawer over the bottom half. Roll toasts pop up even when it's closed.</p>
+      <div class="mockup"><div class="mockup-header">Immersive + drawer</div><div class="mockup-body">
+        <div class="scene" style="min-height:120px">🏞 The Delta Crossing &nbsp;·&nbsp; <span style="background:#000a;padding:2px 4px;border-radius:3px">🎲 Might check: 12 vs DC 12 ✅</span></div>
+        <div class="narr">The river runs in versioned layers, each current a different day. A ferryman eyes your satchel…</div>
+        <div class="row"><div class="choice" style="flex:1">1. Pay</div><div class="choice" style="flex:1">2. Wade</div><div class="choice" style="flex:1">3. Ask</div></div>
+        <div style="text-align:center;font-size:10px;border-top:2px solid #3c6;margin-top:6px;padding-top:3px">▲ 🔍 Behind the curtain (3 tool calls) ▲</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Three columns — sheet · story · curtain</h3>
+      <p>Classic RPG client: character sheet &amp; inventory left, story centre, curtain right. Most information-dense; can feel busy on laptops.</p>
+      <div class="mockup"><div class="mockup-header">Three column</div><div class="mockup-body">
+        <div class="row">
+          <div style="flex:1"><div class="sheet">⚔ Brannoc<br>HP 14/18<br>M+3 W+0 C+1<br>🎒 rope, lantern, 12 gp<br>📜 Find the Archivist</div></div>
+          <div style="flex:2"><div class="scene">🏞 Delta Crossing</div><div class="narr">A ferryman eyes your satchel…</div><div class="choice">1. Pay</div><div class="choice">2. Wade</div></div>
+          <div style="flex:1.4"><div class="curtain"><span class="node on">dm_reason</span><br>▶ search_lore<br>▶ roll_check ✅<br>trace ↗</div></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+</div>
