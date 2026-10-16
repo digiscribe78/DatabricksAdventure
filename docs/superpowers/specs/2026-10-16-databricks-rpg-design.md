@@ -64,7 +64,7 @@ Source: <https://docs.databricks.com/aws/en/agents/> and linked pages.
 flowchart LR
   P[Player browser] --> UI[Game App<br/>Databricks App<br/>React + FastAPI]
   UI -- user OAuth, stream --> DM[DM Agent<br/>LangGraph on DurableAgentServer<br/>Agent Runtime]
-  UI -. read-only .-> GS[(Lakebase<br/>game state)]
+  UI -. game snapshot via DM .-> DM
   UI -. fetch trace .-> ML[MLflow experiment]
   DM --> GW[Unity Gateway<br/>LLM + guardrail policies]
   DM --> UCF[UC functions<br/>roll_check, resolve_attack]
@@ -78,7 +78,7 @@ flowchart LR
   ING --- VOL[UC Volume<br/>lorebook PDFs, images]
 ```
 
-**Principle: the agent is the only writer of game state.** The game app reads Lakebase to render the character sheet and save list, and every mutation goes through a traced agent tool.
+**Principle: the agent is the only writer of game state.** The game app has no Lakebase access: the DM returns a game snapshot (sheet, location, exits, flags and NPC moods, never NPC secrets) with every turn, and answers list_adventures. Every mutation goes through a traced agent tool.
 
 ## 4. The DM agent
 
@@ -206,6 +206,7 @@ npc_disposition(character_id, npc_id, disposition)   -- -3..+3
 ```
 
 - **Identity:** player_id is the runtime's per-principal namespace hash (request_auth.namespace("player", "self")) from the Apps-forwarded identity. Client-supplied actors are ignored when deployed. Players only see and play their own saves (GameStore.owner).
+- adventures.client_session_id stores the client's raw session id so Continue can resume (the runtime namespaces session ids per user).
 - `npc_cards` is seeded from `content/npcs/*.yaml` at deploy time.
 - The game tables live in **their own Lakebase database, declared in the bundle**. The Lakebase that Agent Runtime provisions for its stores is not documented as available for app data, so we don't share it.
 
@@ -224,8 +225,8 @@ npc_disposition(character_id, npc_id, disposition)   -- -3..+3
 
 ## 9. Game app
 
-- **Hosting:** a separate Databricks App (`rpg-game`), defined in the bundle. A FastAPI backend serves the built React (Vite) frontend as static files and proxies to the DM agent's `/api/invocations` using the **user's forwarded OAuth token**.
-- **Backend endpoints:** `GET /api/characters`, `POST /api/adventures` (create a character and start an adventure: the backend calls the agent with a `new_game` instruction, and the agent writes the state), `POST /api/turn` (stream proxy), `GET /api/turn/<id>/events?after=` (reconnect), `GET /api/trace/<id>`. The backend's Lakebase access is read-only.
+- **Hosting:** a separate Databricks App (`databricks-adventure`, in `app/` with its own small bundle). Built with AppKit (TypeScript/React plus an Express proxy), which superseded the FastAPI note. The app forwards the player's x-forwarded-access-token to the DM's `/api/invocations`. Verified that the DM sees the same per-player identity.
+- **Backend endpoints:** `GET /api/adventures` (the DM's list_adventures), `POST /api/turn` (`{sessionId, message?, newGame?}`; streams the DM's SSE filtered to run.started, node, turn, game and run.*) and `GET /api/health`. The DM URL is resolved at runtime with the app's M2M token. The trace link goes to the DM's trace experiment page (a per-trace deep link comes later).
 - **Screens:**
   1. **Title / character select.** New adventure (pick an archetype, give them a name) or Continue.
   2. **Game: layout A (split screen).** The story is on the left: scene image, narration, choice buttons, free-text input and a character sheet strip. The **curtain panel** is on the right and collapsible ("just play" mode).
@@ -270,7 +271,7 @@ When a policy blocks an interaction, `guardrail_gate` turns it into an in-world 
 1. **`search_lore` binding.** `agent.toml` documents `mcp` sources but not an AI Search index binding. Plan: agent-side Python using the AI Search client, plus a resource grant to the agent's service principal. If a managed AI Search MCP service is bindable via `kind = "mcp"`, switch to it. Decide during the skeleton milestone. Resolved (M2): agent-side tool. No managed AI Search MCP service is available.
 2. **AI Search endpoint type.** Use whichever of standard or storage-optimised has the lower per-unit price on the current pricing page. Both are far beyond our size, at a few hundred chunks. M2 uses STANDARD for query latency. Confirm pricing before release.
 3. **Unity Gateway policy configuration.** Confirm whether the policies can be scripted (CLI/API) for `make deploy`, or need documented one-time UI steps.
-4. **Game app → agent auth.** Confirm the exact mechanism for calling an Agent Runtime endpoint with the forwarded user token from another app, and the permission grant the app needs.
+4. **Game app → agent auth.** Confirm the exact mechanism for calling an Agent Runtime endpoint with the forwarded user token from another app, and the permission grant the app needs. Resolved (M4): OBO token forwarding with default scopes works app-to-app. The game app declares an app resource on the DM (CAN_USE). Players need CAN_USE on both apps.
 
 ## 12. Repo layout
 
