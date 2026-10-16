@@ -3,19 +3,20 @@
 set -euo pipefail
 BASE="${1:-http://localhost:8000}"
 SESSION=$(uuidgen)
+AUTH=(); [ -n "${TOKEN:-}" ] && AUTH=(-H "Authorization: Bearer $TOKEN")
 
 turn() {
   local content="$1" extra="${2:-}" body out
   [ -n "$extra" ] || extra='{}'
   body=$(jq -n --arg id "$(uuidgen)" --arg s "$SESSION" --arg c "$content" --argjson extra "$extra" \
     '{id:$id, session_id:$s, input:({messages:(if $c == "" then [] else [{role:"user", content:$c}] end), actor:"smoke-player"} + $extra)}')
-  out=$(curl -sS --fail "$BASE/api/invocations" -H 'Content-Type: application/json' -d "$body")
+  out=$(curl -sS --fail "$BASE/api/invocations" ${AUTH[@]+"${AUTH[@]}"} -H 'Content-Type: application/json' -d "$body")
   echo "$out" | jq -e '.output.turn.narration | length > 0' >/dev/null || { echo "FAIL: no narration"; echo "$out"; exit 1; }
   echo "$out" | jq -e '.output.turn.choices | length >= 2' >/dev/null || { echo "FAIL: <2 choices"; echo "$out"; exit 1; }
   echo "--- turn: ${content:-<new game>}"
   echo "$out" | jq -r '.output.turn.narration, (.output.turn.choices[] | "  > " + .),
     "  📍 " + .output.turn.location_id,
-    (.output.turn.events[] | ({"roll":"🎲","lore":"📚","attack":"⚔️ ","state":"💾"}[.type] // "•") + " " + .summary)'
+    (.output.turn.events[] | ({"roll":"🎲","lore":"📚","attack":"⚔️ ","state":"💾","memory":"🧠"}[.type] // "•") + " " + .summary)'
 }
 
 turn "" '{"new_game":{"name":"Brannoc","archetype":"warrior"}}'

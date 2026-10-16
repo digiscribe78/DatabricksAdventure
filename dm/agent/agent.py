@@ -38,6 +38,9 @@ def game_store() -> GameStore:
     """Lakebase when PGHOST is configured, otherwise an in-memory store (dev without a database)."""
     global _store
     if _store is None:
+        if not os.getenv("PGHOST") and os.getenv("DATABRICKS_APP_NAME"):
+            raise RuntimeError("deployed without a Lakebase game database (PGHOST unset): "
+                               "attach the game-db resource (make deploy-agent) instead of losing saves")
         if os.getenv("PGHOST"):
             from agent.pgstore import PostgresStore
 
@@ -106,7 +109,9 @@ async def create_agent_graph(
     llm = _RoutedChatDatabricks(
         endpoint=model or MODEL, workspace_client=workspace_client(), use_ai_gateway=True
     )
-    return build_dm_graph(llm, tools, checkpointer=checkpointer(), store=game_store())
+    from agent.memory import recall_memories
+
+    return build_dm_graph(llm, tools, checkpointer=checkpointer(), store=game_store(), recall=recall_memories)
 
 
 async def recovery_input(

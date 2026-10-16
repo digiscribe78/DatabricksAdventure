@@ -56,6 +56,7 @@ Source: <https://docs.databricks.com/aws/en/agents/> and linked pages.
 - **Unity Gateway service policies** offer built-in guardrails (prompt injection, PII, unsafe content), custom policies, and human approval on MCP services. **Beta**: an account admin enables them on the Previews page.
 - **Lakebase**: managed Postgres. Inactive computes auto-suspend.
 - **Databricks Apps**: billed per hour of provisioned compute while running. Supports Python and Node frameworks.
+- **Deployed tracing (verified 2026-10-16):** Apps can't upload span artifacts to experiment storage, so the DM's experiment uses a Unity Catalog trace location (dm_* tables plus a SQL warehouse), with grants to the app service principal.
 
 ## 3. Architecture
 
@@ -192,7 +193,7 @@ Authoring: Cog drafts the lorebooks and NPC cards, and Mike edits them. Images a
 | Layer | Store | Contents |
 |---|---|---|
 | Session | Managed session store | One `session_id` per adventure. LangGraph checkpoints. "Continue" resumes the session. |
-| Memory | Managed memory store | `actor_id` = player. Paths like `/npcs/<npc_id>` and `/choices/<slug>`. Populated by the memory pipeline after each session and recalled in `load_state`. |
+| Memory | Managed memory store | `actor_id` = player. Paths like `/npcs/<npc_id>` and `/choices/<slug>`. Populated by the memory pipeline after each session and recalled in `load_state`. Recalled once at session start (top 5, a 🧠 event, injected into the DM prompt), and written by the model's remember tool. The Dreamer pipeline (make memory-pipeline) exists but distils nothing yet, because the session store holds LangGraph checkpoints rather than transcript items (follow-up). |
 | Game state | Project-owned **Lakebase** database `rpg` | The tables below |
 
 ```
@@ -204,7 +205,7 @@ npc_cards(npc_id, name, persona, speech_style, secrets, home_location_id)
 npc_disposition(character_id, npc_id, disposition)   -- -3..+3
 ```
 
-- `player_id` is the signed-in Databricks user, taken from the identity forwarded by the game app. Players only see their own characters and adventures.
+- **Identity:** player_id is the runtime's per-principal namespace hash (request_auth.namespace("player", "self")) from the Apps-forwarded identity. Client-supplied actors are ignored when deployed. Players only see and play their own saves (GameStore.owner).
 - `npc_cards` is seeded from `content/npcs/*.yaml` at deploy time.
 - The game tables live in **their own Lakebase database, declared in the bundle**. The Lakebase that Agent Runtime provisions for its stores is not documented as available for app data, so we don't share it.
 
@@ -304,7 +305,7 @@ DatabricksAdventure/
 1. `databricks bundle deploy`: creates the schema, volumes, Lakebase database, jobs and game app, and uploads the content.
 2. Runs `ingest_lore`, which builds the AI Search index.
 3. Seeds `npc_cards` and creates the game tables.
-4. `agentbricks --profile <name> deploy dm`: deploys the agent with its session and memory stores and tracing.
+4. `make deploy-agent`: clean build copy in $TMPDIR → agentbricks deploy → attach the game-db Lakebase resource → least-privilege grants (UC lore index and trace tables, Lakebase rpg schema, warehouse CAN_USE).
 5. Applies the Unity Gateway policies and grants the game app access to the agent.
 6. Prints the game URL.
 

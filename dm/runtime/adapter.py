@@ -36,6 +36,13 @@ def _actor(payload: dict[str, Any], session_id: str) -> str:
     return value
 
 
+def _player(payload: dict[str, Any], session_id: str, auth: Any) -> str:
+    """Who is playing: the authenticated principal when deployed, never a client-supplied value."""
+    if auth is not None:
+        return auth.namespace("player", "self")
+    return _actor(payload, session_id)
+
+
 def _agent_input(payload: dict[str, Any]) -> Any:
     if (resume := payload.get("resume")) is not None:
         return Command(resume=resume)
@@ -125,10 +132,8 @@ async def _invoke_agent(
     context: InvocationContext,
 ) -> dict:
     session_id = _session_id(context)
-    actor = _actor(payload, session_id)
     auth = getattr(context, "request_auth", None)
-    if auth and payload.get("actor"):
-        actor = auth.namespace("actor", actor)
+    actor = _player(payload, session_id, auth)
     _ensure_adventure(payload, session_id, actor)
     user_auth = auth is not None
     run_kwargs = {"workspace_client_for": auth.client_for} if user_auth else {}

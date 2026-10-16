@@ -14,6 +14,12 @@ Lore lookups need the AI Search index from the repo root's `make deploy`. Set `L
 improvises.
 
 Game state lives in Lakebase when PG* variables are set (see .env.example), otherwise in memory.
+Deploy with `make deploy-agent PROFILE=… CATALOG=…` from the repo root. It deploys from a clean copy
+in `$TMPDIR`, because `agentbricks deploy` rewrites app.yaml and agent.toml with workspace-specific
+values. Deployed calls need a bearer token: `TOKEN=$(databricks auth token -p <profile> | jq -r
+.access_token) scripts/smoke_turns.sh <app-url>`. The node events are load_state → dm_reason →
+tools → commit_state → compose. `scripts/lakebase_env.sh` needs `jq`.
+
 Start every session with `"new_game": {"name": ..., "archetype": "warrior"|"mage"|"bard"}` in the
 invocation input.
 

@@ -420,3 +420,50 @@ def test_model_sees_at_most_history_turns_past_turns():
         humans = [m.content for m in sent if isinstance(m, HumanMessage)]
         assert len(humans) == HISTORY_TURNS + 1
         assert humans[-1] == f"turn {turns - 1}"
+
+
+def test_first_turn_recalls_memories_once_and_emits_event():
+    asked = []
+
+    def recall(actor):
+        asked.append(actor)
+        return ["Spared the thief in the swamp"]
+
+    model = ScriptedModel(replies=[AIMessage(content="ok"), AIMessage(content="ok")], structured=[PROSE, PROSE])
+    graph = build_dm_graph(model, [roll_check], checkpointer=InMemorySaver(), store=new_store(), recall=recall)
+    cfg = {"configurable": {"thread_id": "t1", "actor_id": "player-1"}}
+    first = graph.invoke({"messages": []}, cfg)["turn"]
+    second = graph.invoke({"messages": [{"role": "user", "content": "hi"}]}, cfg)["turn"]
+    assert asked == ["player-1"]
+    assert first["events"][0]["type"] == "memory" and "1 thing" in first["events"][0]["summary"]
+    assert [e["type"] for e in second["events"]] == []
+    assert "Spared the thief in the swamp" in model.reason_calls[-1][0].content
+
+
+def test_memory_outage_does_not_break_the_turn():
+    def recall(actor):
+        raise ConnectionError("memory store down")
+
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    graph = build_dm_graph(model, [roll_check], checkpointer=InMemorySaver(), store=new_store(), recall=recall)
+    turn = graph.invoke({"messages": []}, {"configurable": {"thread_id": "t1", "actor_id": "player-1"}})["turn"]
+    assert turn["narration"] == PROSE.narration and turn["events"] == []
+
+
+def test_slow_memory_recall_is_abandoned_within_budget(monkeypatch):
+    import time
+
+    import agent.dm_graph as g
+
+    monkeypatch.setattr(g, "RECALL_TIMEOUT_S", 0.2)
+
+    def slow(actor):
+        time.sleep(3)
+        return ["too late"]
+
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    graph = build_dm_graph(model, [roll_check], checkpointer=InMemorySaver(), store=new_store(), recall=slow)
+    started = time.monotonic()
+    turn = graph.invoke({"messages": []}, {"configurable": {"thread_id": "t1", "actor_id": "player-1"}})["turn"]
+    assert time.monotonic() - started < 2
+    assert turn["events"] == []
