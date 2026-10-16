@@ -16,14 +16,16 @@ from langchain_core.messages import (
     SystemMessage,
     ToolMessage,
 )
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from agent.prompts import COMPOSE_SYSTEM, OPENING_CUE, render_dm_system
+from rpg.state import GameState, apply_changes
+from rpg.store import GameStore
 from rpg.turn import ComposeOutput, TurnEvent, TurnOutput
-from rpg.world import DEFAULT_CHARACTER, LOCATIONS, START_LOCATION_ID, Character
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +37,38 @@ FALLBACK_NARRATION = (
 )
 FALLBACK_CHOICES = ["Look around", "Wait and listen"]
 
+COMMIT_FAILED_NARRATION = (
+    "The world shimmers and slips, like a page turned too quickly. Nothing you just did seems "
+    "to have stuck. What do you do?"
+)
+
+
+def _stage(left: list | None, right: list | None) -> list:
+    """Reducer for staged changes: None resets (start of turn), a list appends."""
+    return [] if right is None else [*(left or []), *right]
+
 
 class DMState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
     character: dict
     location_id: str
+    flags: dict
+    npcs: list[dict]
+    staged: Annotated[list[dict], _stage]
+    state_summaries: list[str]
+    commit_failed: bool
     turn: dict | None
     reason_failed: bool
+
+
+def _game(state: DMState) -> GameState:
+    return GameState(character=state["character"], location_id=state["location_id"],
+                     flags=state.get("flags") or {}, npcs=state.get("npcs") or [])
+
+
+def _game_update(game: GameState) -> dict:
+    return {"character": game.character.model_dump(), "location_id": game.location_id,
+            "flags": dict(game.flags), "npcs": [n.model_dump() for n in game.npcs]}
 
 
 def _current_turn(messages: list[AnyMessage]) -> list[AnyMessage]:
@@ -80,7 +107,15 @@ def _lore_event(r: dict) -> TurnEvent:
     return TurnEvent(type="lore", summary=summary, detail=r)
 
 
-_EVENT_BUILDERS = {"roll_check": _roll_event, "search_lore": _lore_event}
+def _attack_event(r: dict) -> TurnEvent:
+    who = f"{r['attacker']} attacks {r['target']}" if "attacker" in r else f"Attack on {r['target']}"
+    outcome = f"hit for {r['damage']}" if r["hit"] else "miss"
+    summary = f"{who}: {r['roll']} {r['modifier']:+d} = {r['total']} vs defence {r['defence']}, {outcome}"
+    return TurnEvent(type="attack", summary=summary, detail=r)
+
+
+_EVENT_BUILDERS = {"roll_check": _roll_event, "search_lore": _lore_event,
+                   "resolve_attack": _attack_event, "enemy_attack": _attack_event}
 
 
 def turn_events(messages: list[AnyMessage]) -> list[TurnEvent]:
@@ -127,24 +162,24 @@ def fallback_turn(
     return TurnOutput.from_compose(fallback, location_id, events)
 
 
-def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None):
+def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *, store: GameStore):
     reasoner = llm.bind_tools(tools)
 
-    def load_state(state: DMState) -> dict:
-        update: dict = {}
-        if not state.get("character"):
-            update["character"] = DEFAULT_CHARACTER.model_dump()
-        if not state.get("location_id"):
-            update["location_id"] = START_LOCATION_ID
+    def _sid(config: RunnableConfig) -> str:
+        return config["configurable"]["thread_id"]
+
+    def load_state(state: DMState, config: RunnableConfig) -> dict:
+        game = store.load(_sid(config))
+        if game is None:
+            raise LookupError(f"no adventure for session {_sid(config)}")
+        update = {**_game_update(game), "staged": None, "state_summaries": [], "commit_failed": False}
         messages = state.get("messages") or []
         if not messages or not isinstance(messages[-1], HumanMessage):
             update["messages"] = [HumanMessage(OPENING_CUE)]
         return update
 
     def dm_reason(state: DMState) -> dict:
-        character = Character.model_validate(state["character"])
-        location = LOCATIONS[state["location_id"]]
-        system = SystemMessage(render_dm_system(character, location))
+        system = SystemMessage(render_dm_system(_game(state)))
         try:
             return {"messages": [reasoner.invoke([system, *_sendable(state["messages"])])]}
         except Exception:  # noqa: BLE001 - the world never breaks character; compose falls back
@@ -156,34 +191,53 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None):
         calls = getattr(last, "tool_calls", None) or []
         if calls and _tool_calls_used(state["messages"]) + len(calls) <= MAX_TOOL_CALLS_PER_TURN:
             return "tools"
-        return "compose"
+        return "commit_state"
+
+    def commit_state(state: DMState, config: RunnableConfig) -> dict:
+        staged = state.get("staged") or []
+        if not staged:
+            return {}
+        try:
+            new, summaries = apply_changes(_game(state), staged)
+            store.commit(_sid(config), new)
+            game = store.load(_sid(config))
+        except Exception:  # noqa: BLE001 - rolled back by the store; the turn reports failure in-world
+            logger.warning("commit_state failed", exc_info=True)
+            return {"commit_failed": True}
+        return {**_game_update(game), "state_summaries": summaries}
 
     def compose(state: DMState) -> dict:
         messages = state["messages"]
         previous = (state.get("turn") or {}).get("choices")
         events = turn_events(messages)
-        if state.get("reason_failed"):
-            turn = fallback_turn(state["location_id"], events, previous)
+        if state.get("commit_failed"):
+            turn = fallback_turn(state["location_id"], [], previous)
+            turn.narration = COMMIT_FAILED_NARRATION
+            removals = [RemoveMessage(id=m.id) for m in _current_turn(messages)
+                        if not isinstance(m, HumanMessage)]
         else:
-            turn = compose_turn(llm, messages, state["location_id"], events, previous)
-        # Keep history provider-valid with one assistant message per turn: drop dm_reason's
-        # draft prose, or its tool calls that the budget left unanswered.
-        removals = [RemoveMessage(id=messages[-1].id)] if isinstance(messages[-1], AIMessage) else []
+            if state.get("state_summaries"):
+                events.append(TurnEvent(type="state", summary="; ".join(state["state_summaries"]),
+                                        detail={"changes": state.get("staged") or []}))
+            if state.get("reason_failed"):
+                turn = fallback_turn(state["location_id"], events, previous)
+            else:
+                turn = compose_turn(llm, messages, state["location_id"], events, previous)
+            removals = [RemoveMessage(id=messages[-1].id)] if isinstance(messages[-1], AIMessage) else []
         text = turn.narration + "\n\n" + "\n".join(f"- {c}" for c in turn.choices)
-        return {
-            "turn": turn.model_dump(),
-            "messages": [*removals, AIMessage(content=text)],
-            "reason_failed": False,
-        }
+        return {"turn": turn.model_dump(), "messages": [*removals, AIMessage(content=text)],
+                "reason_failed": False, "commit_failed": False}
 
     builder = StateGraph(DMState)
     builder.add_node("load_state", load_state)
     builder.add_node("dm_reason", dm_reason)
     builder.add_node("tools", ToolNode(tools, handle_tool_errors=True))
+    builder.add_node("commit_state", commit_state)
     builder.add_node("compose", compose)
     builder.add_edge(START, "load_state")
     builder.add_edge("load_state", "dm_reason")
-    builder.add_conditional_edges("dm_reason", route, {"tools": "tools", "compose": "compose"})
+    builder.add_conditional_edges("dm_reason", route, {"tools": "tools", "commit_state": "commit_state"})
     builder.add_edge("tools", "dm_reason")
+    builder.add_edge("commit_state", "compose")
     builder.add_edge("compose", END)
     return builder.compile(checkpointer=checkpointer)
