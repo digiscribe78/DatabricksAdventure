@@ -41,6 +41,15 @@ def index_spec(source_table, embedding_endpoint):
     }
 
 
+def index_synced(index, expected_rows):
+    """True once the index is ready AND has caught up with the rows just written.
+
+    ``ready`` alone stays True from the first build, so after a re-sync it would pass instantly.
+    """
+    status = getattr(index, "status", None)
+    return bool(status and status.ready and status.indexed_row_count == expected_rows)
+
+
 def _wait(check, what, timeout_s=1800, every_s=20):
     deadline = time.time() + timeout_s
     while not check():
@@ -117,7 +126,7 @@ def main(argv=None):
             ),
         )
         logger.info("created %s", index_name)
-    _wait(lambda: bool(w.vector_search_indexes.get_index(index_name).status.ready), f"index {index_name}")
+    _wait(lambda: index_synced(w.vector_search_indexes.get_index(index_name), len(chunks)), f"index {index_name}")
     logger.info("index %s ready", index_name)
 
 

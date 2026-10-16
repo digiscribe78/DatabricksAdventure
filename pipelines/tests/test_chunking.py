@@ -65,3 +65,13 @@ def test_chunk_ids_are_deterministic():
 def test_element_without_bbox_defaults_to_page_one():
     out = chunks_of(doc({"id": 0, "type": "title", "content": "T"}, {"id": 1, "type": "text", "content": "b"}))
     assert out[0].page == 1
+
+
+def test_single_oversized_element_is_split_on_word_boundaries():
+    words = " ".join(f"word{i}" for i in range(800))  # ~6,000 characters in one paragraph
+    out = chunks_of(doc(el(0, "title", "T"), el(1, "section_header", "Huge"), el(2, "text", words)))
+    assert len(out) > 1
+    assert all(len(c.chunk_text) <= MAX_CHUNK_CHARS for c in out)
+    assert all(c.chunk_text.startswith("T › Huge\n\n") for c in out)
+    rejoined = " ".join(c.chunk_text.split("\n\n", 1)[1] for c in out)
+    assert rejoined.split() == words.split()  # nothing lost or reordered

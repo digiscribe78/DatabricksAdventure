@@ -22,6 +22,21 @@ def _page(element: dict) -> int:
     return (bbox[0].get("page_id", 0) if bbox else 0) + 1
 
 
+def _split_words(text: str, limit: int) -> list[str]:
+    """Split one over-long element on word boundaries so each piece fits ``limit`` characters."""
+    pieces, current = [], ""
+    for word in text.split():
+        candidate = f"{current} {word}" if current else word
+        if current and len(candidate) > limit:
+            pieces.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        pieces.append(current)
+    return pieces
+
+
 def chunk_document(parsed: dict, source: str, doc_type: str, location_id: str) -> list[Chunk]:
     chunks: list[Chunk] = []
     title: str | None = None
@@ -48,10 +63,12 @@ def chunk_document(parsed: dict, source: str, doc_type: str, location_id: str) -
             path = [title, content] if title else [content]
         else:
             prefix_len = len(_SEP.join(path)) + 2
-            if body and prefix_len + len("\n\n".join([*body, content])) > MAX_CHUNK_CHARS:
-                flush()
-            if not body:
-                first_page = _page(element)
-            body.append(content)
+            limit = MAX_CHUNK_CHARS - prefix_len
+            for piece in _split_words(content, limit) if len(content) > limit else [content]:
+                if body and prefix_len + len("\n\n".join([*body, piece])) > MAX_CHUNK_CHARS:
+                    flush()
+                if not body:
+                    first_page = _page(element)
+                body.append(piece)
     flush()
     return chunks

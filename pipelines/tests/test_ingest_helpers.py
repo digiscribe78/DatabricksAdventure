@@ -43,3 +43,17 @@ def test_index_spec_uses_triggered_managed_embeddings():
         {"name": "chunk_text", "embedding_model_endpoint_name": "databricks-gte-large-en"}
     ]
     assert set(spec["columns_to_sync"]) == {"chunk_id", "chunk_text", "doc_type", "location_id", "source", "page"}
+
+
+def test_index_synced_requires_ready_and_matching_row_count():
+    from types import SimpleNamespace
+
+    from ingest_job import index_synced
+
+    def status(ready, rows):
+        return SimpleNamespace(status=SimpleNamespace(ready=ready, indexed_row_count=rows))
+
+    assert index_synced(status(True, 27), 27) is True
+    assert index_synced(status(True, 27), 30) is False  # ready from an earlier build, sync not caught up
+    assert index_synced(status(False, 30), 30) is False
+    assert index_synced(SimpleNamespace(status=None), 30) is False
