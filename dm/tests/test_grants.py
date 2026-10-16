@@ -41,3 +41,72 @@ def test_merge_app_resources_replaces_by_name_and_keeps_others():
     merged = merge_app_resources([exp, old], game_db_resource())
     assert merged[0] == exp and merged[1] == game_db_resource() and len(merged) == 2
     assert merge_app_resources([exp], game_db_resource()) == [exp, game_db_resource()]
+
+
+from types import SimpleNamespace
+
+from devtools import grants
+
+
+def _status(state, msg=None):
+    return SimpleNamespace(status=SimpleNamespace(state=SimpleNamespace(value=state),
+                                                  error=SimpleNamespace(message=msg) if msg else None),
+                           statement_id="st-1")
+
+
+def test_uc_grants_poll_pending_statements_to_completion(monkeypatch):
+    monkeypatch.setattr(grants.time, "sleep", lambda s: None)
+    polls = iter([_status("RUNNING"), _status("SUCCEEDED")])
+    w = SimpleNamespace(statement_execution=SimpleNamespace(
+        execute_statement=lambda **kw: _status("PENDING"),
+        get_statement=lambda statement_id: next(polls)))
+    assert grants.apply_uc_grants(w, "wh", ["GRANT X"]) == []
+
+
+def test_uc_grants_report_terminal_failures_only(monkeypatch):
+    w = SimpleNamespace(statement_execution=SimpleNamespace(
+        execute_statement=lambda **kw: _status("FAILED", "PERMISSION_DENIED"), get_statement=None))
+    assert grants.apply_uc_grants(w, "wh", ["GRANT Y"]) == ["GRANT Y: PERMISSION_DENIED"]
+
+
+def test_lakebase_grants_are_independent_autocommit_statements():
+    executed = []
+
+    class Conn:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def execute(self, stmt):
+            assert self.autocommit is True
+            if "INSERT" in stmt:
+                raise RuntimeError("boom")
+            executed.append(stmt)
+
+    failures = grants.apply_lakebase_grants(["A", "B INSERT", "C"], connect=Conn)
+    assert executed == ["A", "C"] and len(failures) == 1 and "B INSERT" in failures[0]
+
+
+def test_lakebase_connection_error_is_a_reported_failure():
+    def broken():
+        raise KeyError("PGHOST")
+
+    failures = grants.apply_lakebase_grants(["A"], connect=broken)
+    assert failures and "connect" in failures[0]
+
+
+def test_cli_errors_include_stderr(monkeypatch):
+    import subprocess
+
+    def fail(*a, **k):
+        raise subprocess.CalledProcessError(1, a[0], output="", stderr="App not found: nope")
+
+    monkeypatch.setattr(grants.subprocess, "run", fail)
+    import pytest
+
+    with pytest.raises(RuntimeError, match="App not found"):
+        grants._cli("p", "apps", "get", "nope")

@@ -4,6 +4,7 @@ Each node is a step the curtain panel can light up. The model only writes prose.
 and turn events are built in code from tool results.
 """
 
+import concurrent.futures
 import json
 from collections.abc import Callable
 import logging
@@ -31,7 +32,8 @@ from rpg.turn import ComposeOutput, TurnEvent, TurnOutput
 logger = logging.getLogger(__name__)
 
 MAX_TOOL_CALLS_PER_TURN = 6
-HISTORY_TURNS = 8  # past turns the model sees, besides the current one
+HISTORY_TURNS = 8
+RECALL_TIMEOUT_S = 5.0  # memory is a bonus; never hold the opening scene hostage to it  # past turns the model sees, besides the current one
 
 FALLBACK_NARRATION = (
     "A strange mist rolls through, and for a moment the world seems to hold its breath. "
@@ -214,7 +216,10 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
             update["messages"] = [HumanMessage(OPENING_CUE)]
         if recall is not None and "memories" not in state:
             try:
-                memories = recall(config["configurable"].get("actor_id") or _sid(config))
+                pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                future = pool.submit(recall, config["configurable"].get("actor_id") or _sid(config))
+                pool.shutdown(wait=False)  # a slow recall finishes in the background, unused
+                memories = future.result(timeout=RECALL_TIMEOUT_S)
             except Exception:  # noqa: BLE001 - memory is a bonus; never break the turn
                 logger.warning("memory recall failed", exc_info=True)
                 memories = []

@@ -448,3 +448,22 @@ def test_memory_outage_does_not_break_the_turn():
     graph = build_dm_graph(model, [roll_check], checkpointer=InMemorySaver(), store=new_store(), recall=recall)
     turn = graph.invoke({"messages": []}, {"configurable": {"thread_id": "t1", "actor_id": "player-1"}})["turn"]
     assert turn["narration"] == PROSE.narration and turn["events"] == []
+
+
+def test_slow_memory_recall_is_abandoned_within_budget(monkeypatch):
+    import time
+
+    import agent.dm_graph as g
+
+    monkeypatch.setattr(g, "RECALL_TIMEOUT_S", 0.2)
+
+    def slow(actor):
+        time.sleep(3)
+        return ["too late"]
+
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    graph = build_dm_graph(model, [roll_check], checkpointer=InMemorySaver(), store=new_store(), recall=slow)
+    started = time.monotonic()
+    turn = graph.invoke({"messages": []}, {"configurable": {"thread_id": "t1", "actor_id": "player-1"}})["turn"]
+    assert time.monotonic() - started < 2
+    assert turn["events"] == []

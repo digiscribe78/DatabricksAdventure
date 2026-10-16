@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+import time
 
 TRACE_TABLES = ("otel_annotations", "otel_logs", "otel_metrics", "otel_spans")
 TRACE_VIEWS = ("trace_metadata", "trace_unified")
@@ -39,10 +40,15 @@ def merge_app_resources(current: list[dict], wanted: dict) -> list[dict]:
     return [*kept, wanted]
 
 
+def _run(cmd: list[str]) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"{' '.join(cmd[:3])} failed: {(e.stderr or e.stdout or '').strip()}") from e
+
+
 def _cli(profile: str, *args: str) -> dict:
-    out = subprocess.run(["databricks", *args, "--profile", profile, "-o", "json"],
-                         capture_output=True, text=True, check=True)
-    return json.loads(out.stdout or "{}")
+    return json.loads(_run(["databricks", *args, "--profile", profile, "-o", "json"]).stdout or "{}")
 
 
 def attach_game_db(profile: str, app: str) -> str:
@@ -50,31 +56,43 @@ def attach_game_db(profile: str, app: str) -> str:
     current = _cli(profile, "apps", "get", app)
     resources = merge_app_resources(current.get("resources") or [], game_db_resource())
     body = json.dumps({"update_mask": "resources", "app": {"resources": resources}})
-    subprocess.run(["databricks", "apps", "create-update", app, "--json", body, "--profile", profile],
-                   capture_output=True, text=True, check=True)
+    _run(["databricks", "apps", "create-update", app, "--json", body, "--profile", profile])
     return current["service_principal_client_id"]
 
 
-def apply_uc_grants(w, warehouse_id: str, statements: list[str]) -> list[str]:
+_TERMINAL = {"SUCCEEDED", "FAILED", "CANCELED", "CLOSED"}
+
+
+def apply_uc_grants(w, warehouse_id: str, statements: list[str], deadline_s: float = 600) -> list[str]:
+    """Run each GRANT to completion. A cold warehouse returns PENDING/RUNNING first: poll, don't fail."""
     failures = []
     for stmt in statements:
-        r = w.statement_execution.execute_statement(statement=stmt, warehouse_id=warehouse_id, wait_timeout="50s")
+        r = w.statement_execution.execute_statement(statement=stmt, warehouse_id=warehouse_id, wait_timeout="30s")
+        give_up = time.monotonic() + deadline_s
+        while r.status.state.value not in _TERMINAL and time.monotonic() < give_up:
+            time.sleep(3)
+            r = w.statement_execution.get_statement(r.statement_id)
         if r.status.state.value != "SUCCEEDED":
-            failures.append(f"{stmt}: {r.status.error.message if r.status.error else r.status.state}")
+            failures.append(f"{stmt}: {r.status.error.message if r.status.error else r.status.state.value}")
     return failures
 
 
-def apply_lakebase_grants(statements: list[str]) -> list[str]:
-    from agent.pgstore import connect_from_env
-
+def apply_lakebase_grants(statements: list[str], connect=None) -> list[str]:
+    """Each GRANT is its own autocommit statement, so one failure can't undo the others."""
+    if connect is None:
+        from agent.pgstore import connect_from_env as connect
+    try:
+        conn = connect()
+    except Exception as e:  # noqa: BLE001 - report, don't crash before the UC failures are printed
+        return [f"Lakebase connect failed (is the PG* env from lakebase_env.sh loaded?): {e}"]
     failures = []
-    with connect_from_env() as conn:
+    with conn:
+        conn.autocommit = True
         for stmt in statements:
             try:
                 conn.execute(stmt)
             except Exception as e:  # noqa: BLE001 - collect and report every failure
                 failures.append(f"{stmt}: {e}")
-                conn.rollback()
     return failures
 
 
@@ -94,7 +112,11 @@ def main(argv: list[str] | None = None) -> int:
     from databricks.sdk import WorkspaceClient
 
     w = WorkspaceClient(profile=profile)
-    sp = attach_game_db(profile, app)
+    try:
+        sp = attach_game_db(profile, app)
+    except RuntimeError as e:
+        print(f"GRANT FAILED: could not attach game-db: {e}", file=sys.stderr)
+        return 1
     failures = apply_uc_grants(w, warehouse_id, uc_grant_statements(sp, catalog, schema))
     failures += apply_lakebase_grants(lakebase_grant_statements(sp))
     try:

@@ -4,6 +4,6 @@
 set -euo pipefail
 PROFILE="$1"; PROJECT="${2:-databricks-adventure}"
 EP="projects/$PROJECT/branches/production/endpoints/primary"
-HOST=$(databricks postgres get-endpoint "$EP" --profile "$PROFILE" -o json | jq -r '.status.hosts.host')
-USER_NAME=$(databricks current-user me --profile "$PROFILE" -o json | jq -r '.userName')
+HOST=$(databricks postgres get-endpoint "$EP" --profile "$PROFILE" -o json | jq -er '.status.hosts.host')
+USER_NAME=$(databricks current-user me --profile "$PROFILE" -o json | jq -er '.userName')
 echo "export PGHOST=$HOST PGPORT=5432 PGDATABASE=databricks_postgres PGUSER=$USER_NAME LAKEBASE_ENDPOINT=$EP"

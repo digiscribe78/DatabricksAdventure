@@ -412,3 +412,13 @@ def test_agent_toml_requires_user_auth():
     doc = tomllib.loads((Path(__file__).resolve().parents[1] / "agent.toml").read_text())
     assert doc["auth"]["user"]["required"] is True
     assert doc["tracing"]["experiment_name"] == "/Shared/databricks-adventure/dm-traces"
+
+
+def test_deployed_app_without_lakebase_refuses_in_memory_store(monkeypatch):
+    import agent.agent as agent_module
+
+    monkeypatch.delenv("PGHOST", raising=False)
+    monkeypatch.setenv("DATABRICKS_APP_NAME", "agent-bricks-dm")
+    monkeypatch.setattr(agent_module, "_store", None)
+    with pytest.raises(RuntimeError, match="Lakebase"):
+        agent_module.game_store()

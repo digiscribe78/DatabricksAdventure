@@ -38,6 +38,9 @@ def game_store() -> GameStore:
     """Lakebase when PGHOST is configured, otherwise an in-memory store (dev without a database)."""
     global _store
     if _store is None:
+        if not os.getenv("PGHOST") and os.getenv("DATABRICKS_APP_NAME"):
+            raise RuntimeError("deployed without a Lakebase game database (PGHOST unset): "
+                               "attach the game-db resource (make deploy-agent) instead of losing saves")
         if os.getenv("PGHOST"):
             from agent.pgstore import PostgresStore
 
