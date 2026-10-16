@@ -45,6 +45,7 @@ Using the conversation and any tool results above, produce:
 Do not invent dice results that are not in the tool results."""
 
 OPENING_CUE = "(The adventure begins. Set the opening scene for my character.)"
+CONTINUE_CUE = "(I return to my adventure. Remind me where I am and what is happening.)"
 
 
 def render_dm_system(game: GameState, memories: list[str] = ()) -> str:

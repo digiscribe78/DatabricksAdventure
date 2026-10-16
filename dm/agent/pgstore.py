@@ -64,7 +64,7 @@ class PostgresStore:
                     (c.npc_id, c.name, c.persona, c.speech_style, c.secrets, c.home_location_id),
                 )
 
-    def create_adventure(self, session_id, player_id, name, archetype):
+    def create_adventure(self, session_id, player_id, name, archetype, client_session_id=None):
         c = new_character(name, archetype)
         with self._connect() as conn:
             if conn.execute("SELECT 1 FROM rpg.adventures WHERE id = %s", (session_id,)).fetchone():
@@ -76,7 +76,8 @@ class PostgresStore:
                  START_LOCATION_ID),
             ).fetchone()
             self._write_inventory(conn, cid, c.inventory)
-            conn.execute("INSERT INTO rpg.adventures (id, character_id) VALUES (%s, %s)", (session_id, cid))
+            conn.execute("INSERT INTO rpg.adventures (id, character_id, client_session_id) VALUES (%s, %s, %s)",
+                         (session_id, cid, client_session_id))
         return self.load(session_id)
 
     def load(self, session_id):
@@ -135,11 +136,11 @@ class PostgresStore:
     def list_adventures(self, player_id):
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT a.id, c.name, c.archetype, c.location_id, a.status FROM rpg.adventures a "
+                "SELECT a.id, c.name, c.archetype, c.location_id, a.status, a.client_session_id FROM rpg.adventures a "
                 "JOIN rpg.characters c ON c.id = a.character_id WHERE c.player_id = %s ORDER BY a.updated_at DESC",
                 (player_id,),
             ).fetchall()
-        return [dict(zip(("session_id", "name", "archetype", "location_id", "status"), r)) for r in rows]
+        return [dict(zip(("session_id", "name", "archetype", "location_id", "status", "client_session_id"), r)) for r in rows]
 
     def delete_adventure(self, session_id):
         with self._connect() as conn:

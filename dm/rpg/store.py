@@ -10,7 +10,8 @@ from rpg.world import START_LOCATION_ID, Character, new_character
 
 
 class GameStore(Protocol):
-    def create_adventure(self, session_id: str, player_id: str, name: str, archetype: str) -> GameState: ...
+    def create_adventure(self, session_id: str, player_id: str, name: str, archetype: str,
+                         client_session_id: str | None = None) -> GameState: ...
     def load(self, session_id: str) -> GameState | None: ...
     def owner(self, session_id: str) -> str | None: ...
     def commit(self, session_id: str, state: GameState) -> None: ...
@@ -31,12 +32,13 @@ class InMemoryStore:
     def seed_npcs(self, cards: list[NpcCard]) -> None:
         self._cards.update({c.npc_id: c for c in cards})
 
-    def create_adventure(self, session_id, player_id, name, archetype):
+    def create_adventure(self, session_id, player_id, name, archetype, client_session_id=None):
         if session_id in self._adventures:
             raise ValueError(f"adventure already exists for session {session_id}")
         self._adventures[session_id] = {
             "player_id": player_id, "character": new_character(name, archetype).model_dump(),
             "location_id": START_LOCATION_ID, "flags": {}, "dispositions": {}, "status": "active",
+            "client_session_id": client_session_id,
         }
         return self.load(session_id)
 
@@ -68,7 +70,7 @@ class InMemoryStore:
     def list_adventures(self, player_id):
         return [
             {"session_id": sid, "name": a["character"]["name"], "archetype": a["character"]["archetype"],
-             "location_id": a["location_id"], "status": a["status"]}
+             "location_id": a["location_id"], "status": a["status"], "client_session_id": a["client_session_id"]}
             for sid, a in self._adventures.items() if a["player_id"] == player_id
         ]
 

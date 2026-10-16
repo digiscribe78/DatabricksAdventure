@@ -1,3 +1,4 @@
+import json
 """Smoke tests for the agent.
 
 Hermetic tests import only the leaf modules (tools, session store, event serialization) — no
@@ -422,3 +423,66 @@ def test_deployed_app_without_lakebase_refuses_in_memory_store(monkeypatch):
     monkeypatch.setattr(agent_module, "_store", None)
     with pytest.raises(RuntimeError, match="Lakebase"):
         agent_module.game_store()
+
+
+@pytest.mark.asyncio
+async def test_list_adventures_returns_players_saves_without_running_graph(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    mem_store.create_adventure("hashed-1", "alice:player:self", "Elowen", "mage", client_session_id="raw-1")
+    mem_store.create_adventure("hashed-2", "bob:player:self", "Corwin", "warrior")
+    out = await invoke({"list_adventures": True}, authed_ctx("alice", session="any"))
+    assert [a["client_session_id"] for a in out["adventures"]] == ["raw-1"]
+    assert capture_run == []
+
+
+@pytest.mark.asyncio
+async def test_new_game_stores_client_session_id(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    await invoke({"messages": [], "new_game": {"name": "Elowen", "archetype": "mage"}, "client_session_id": "raw-9"},
+                 authed_ctx("alice", session="hashed-9"))
+    assert mem_store.list_adventures("alice:player:self")[0]["client_session_id"] == "raw-9"
+
+
+@pytest.mark.parametrize("bad", ["", "x" * 65, "has space", "semi;colon", 42])
+@pytest.mark.asyncio
+async def test_bad_client_session_id_rejected(mem_store, capture_run, bad):
+    from runtime.adapter import invoke
+
+    with pytest.raises(ValueError):
+        await invoke({"messages": [], "new_game": {"name": "E", "archetype": "mage"}, "client_session_id": bad},
+                     authed_ctx("alice", session="hashed-x"))
+
+
+@pytest.mark.asyncio
+async def test_turn_emits_and_returns_game_snapshot_without_secrets(mem_store, monkeypatch):
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-g", "s-g", "Brannoc", "warrior")
+
+    async def fake_run_agent(agent_input, **kwargs):
+        yield ("updates", {"compose": {"turn": {"narration": "n"}, "messages": []}})
+
+    monkeypatch.setattr(adapter, "run_agent", fake_run_agent)
+    monkeypatch.setenv("DATABRICKS_HOST", "example.cloud.databricks.com")
+    monkeypatch.setenv("MLFLOW_EXPERIMENT_ID", "42")
+    context = SimpleNamespace(invocation_id="inv-1", session_id="s-g", emit=AsyncMock())
+    result = await adapter.invoke({"messages": []}, context)
+    game = result["game"]
+    assert game["character"]["name"] == "Brannoc" and game["location_name"].startswith("The Medallion Inn")
+    assert game["exits"] == [{"id": "delta-crossing", "name": "The Delta Crossing"}]
+    assert game["npcs"] == [{"npc_id": "marta-quill", "name": "Marta Quill", "disposition": 0}]
+    assert game["traces_url"] == "https://example.cloud.databricks.com/ml/experiments/42/traces"
+    assert "secret" not in json.dumps(game).lower()
+    emitted = [c.args[0] for c in context.emit.await_args_list]
+    assert emitted[-1] == {"type": "game", "game": game}
+
+
+@pytest.mark.asyncio
+async def test_pasted_raw_session_from_another_player_finds_no_adventure(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    mem_store.create_adventure("alice:session:raw-1", "alice:player:self", "Elowen", "mage", client_session_id="raw-1")
+    with pytest.raises(ValueError, match="new_game"):
+        await invoke({"messages": [{"role": "user", "content": "hi"}]}, authed_ctx("mallory", session="mallory:session:raw-1"))
