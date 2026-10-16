@@ -1,6 +1,6 @@
 export interface StreamEvent {
   event: string;
-  data: any;
+  data: unknown;
 }
 
 export function parseSSE(buffer: string): { events: StreamEvent[]; rest: string } {
@@ -16,7 +16,7 @@ export function parseSSE(buffer: string): { events: StreamEvent[]; rest: string 
     }
     if (!data.length) continue;
     try {
-      events.push({ event, data: JSON.parse(data.join('\n')) });
+      events.push({ event, data: JSON.parse(data.join('\n')) as unknown });
     } catch {
       // ignore malformed blocks rather than breaking the turn
     }

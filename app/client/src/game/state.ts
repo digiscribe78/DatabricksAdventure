@@ -1,20 +1,34 @@
+import { z } from 'zod';
 import type { StreamEvent } from './sse';
 
-export interface TurnEvent {
-  type: string;
-  summary: string;
-  detail?: any;
-}
+// Everything from the DM is validated here: the browser trusts nothing it hasn't parsed.
+export const TurnEventSchema = z.object({ type: z.string(), summary: z.string(), detail: z.unknown().optional() });
+export type TurnEvent = z.infer<typeof TurnEventSchema>;
 
-export interface GameSnapshot {
-  character: { name: string; archetype: string; hp: number; max_hp: number; might: number; wits: number; charm: number; gold: number; xp: number; inventory: string[] };
-  location_id: string;
-  location_name: string;
-  exits: { id: string; name: string }[];
-  flags: Record<string, string>;
-  npcs: { npc_id: string; name: string; disposition: number }[];
-  traces_url: string | null;
-}
+export const GameSnapshotSchema = z.object({
+  character: z.object({
+    name: z.string(), archetype: z.string(), hp: z.number(), max_hp: z.number(), might: z.number(),
+    wits: z.number(), charm: z.number(), gold: z.number(), xp: z.number(), inventory: z.array(z.string()),
+  }),
+  location_id: z.string(),
+  location_name: z.string(),
+  exits: z.array(z.object({ id: z.string(), name: z.string() })),
+  flags: z.record(z.string(), z.string()),
+  npcs: z.array(z.object({ npc_id: z.string(), name: z.string(), disposition: z.number() })),
+  traces_url: z.string().nullable(),
+});
+export type GameSnapshot = z.infer<typeof GameSnapshotSchema>;
+
+const NodeData = z.object({ node: z.string() });
+const TurnData = z.object({
+  turn: z.object({
+    narration: z.string().optional(),
+    choices: z.array(z.string()).optional(),
+    events: z.array(TurnEventSchema).optional(),
+    game_over: z.string().nullable().optional(),
+  }),
+});
+const GameData = z.object({ game: GameSnapshotSchema });
 
 export interface GameView {
   sessionId: string;
@@ -51,17 +65,24 @@ export function failTurn(v: GameView, message: string): GameView {
 
 export function applyEvent(v: GameView, e: StreamEvent, now: number): GameView {
   switch (e.event) {
-    case 'node':
-      return { ...v, nodes: [...v.nodes, String(e.data.node)] };
+    case 'node': {
+      const d = NodeData.safeParse(e.data);
+      return d.success ? { ...v, nodes: [...v.nodes, d.data.node] } : v;
+    }
     case 'turn': {
-      const t = e.data.turn ?? {};
+      const d = TurnData.safeParse(e.data);
+      if (!d.success) return v;
+      const t = d.data.turn;
+      const narration = t.narration ?? '';
       return {
-        ...v, narration: t.narration ?? '', choices: t.choices ?? [], events: t.events ?? [],
-        gameOver: t.game_over ?? null, history: keep([...v.history, t.narration ?? '']),
+        ...v, narration, choices: t.choices ?? [], events: t.events ?? [],
+        gameOver: t.game_over ?? null, history: keep([...v.history, narration]),
       };
     }
-    case 'game':
-      return { ...v, game: e.data.game };
+    case 'game': {
+      const d = GameData.safeParse(e.data);
+      return d.success ? { ...v, game: d.data.game } : v;
+    }
     case 'run.completed':
       return { ...v, busy: false, elapsedMs: v.startedAt !== undefined ? now - v.startedAt : undefined };
     case 'run.failed':

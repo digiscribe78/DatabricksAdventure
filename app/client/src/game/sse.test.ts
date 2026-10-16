@@ -9,7 +9,7 @@ describe('parseSSE', () => {
   });
   it('handles several events in one chunk and ignores id lines', () => {
     const { events } = parseSSE('id: 1\nevent: node\ndata: {"node":"a"}\n\nid: 2\nevent: node\ndata: {"node":"b"}\n\n');
-    expect(events.map((e) => e.data.node)).toEqual(['a', 'b']);
+    expect(events.map((e) => (e.data as { node: string }).node)).toEqual(['a', 'b']);
   });
   it('skips malformed data without throwing', () => {
     const { events } = parseSSE('event: node\ndata: not-json\n\n');

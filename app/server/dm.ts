@@ -29,7 +29,14 @@ export interface TurnInput {
   listAdventures?: boolean;
 }
 
-export function invocationBody(input: TurnInput, sessionId: string, stream: boolean): object {
+export interface InvocationBody {
+  id: string;
+  session_id: string;
+  stream: boolean;
+  input: Record<string, unknown>;
+}
+
+export function invocationBody(input: TurnInput, sessionId: string, stream: boolean): InvocationBody {
   let body: Record<string, unknown>;
   if (input.listAdventures) body = { list_adventures: true };
   else if (input.newGame) body = { messages: [], new_game: input.newGame, client_session_id: sessionId };

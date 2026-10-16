@@ -21,18 +21,18 @@ describe('userToken', () => {
 
 describe('invocationBody', () => {
   it('builds a new-game invocation that records the client session id', () => {
-    const b = invocationBody({ newGame: { name: 'Elowen', archetype: 'mage' } }, 'sess-1', true) as any;
+    const b = invocationBody({ newGame: { name: 'Elowen', archetype: 'mage' } }, 'sess-1', true);
     expect(b.session_id).toBe('sess-1');
     expect(b.stream).toBe(true);
     expect(b.input).toEqual({ messages: [], new_game: { name: 'Elowen', archetype: 'mage' }, client_session_id: 'sess-1' });
     expect(b.id).toMatch(/^[0-9a-f-]{36}$/);
   });
   it('builds a player message turn', () => {
-    const b = invocationBody({ message: 'I wade in' }, 'sess-1', true) as any;
+    const b = invocationBody({ message: 'I wade in' }, 'sess-1', true);
     expect(b.input).toEqual({ messages: [{ role: 'user', content: 'I wade in' }] });
   });
   it('builds a list request', () => {
-    const b = invocationBody({ listAdventures: true }, 'lst', false) as any;
+    const b = invocationBody({ listAdventures: true }, 'lst', false);
     expect(b.input).toEqual({ list_adventures: true });
     expect(b.stream).toBe(false);
   });
@@ -65,11 +65,11 @@ describe('resolveDmUrl', () => {
     expect(await resolveDmUrl({ DM_URL: 'https://dm.example/' })).toBe('https://dm.example');
   });
   it('looks the DM app up with an M2M token', async () => {
-    const fetchFn = vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'm2m' }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ url: 'https://agent-bricks-dm-1.example' }) });
+    const fetchFn = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'm2m' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://agent-bricks-dm-1.example' })));
     const env = { DATABRICKS_HOST: 'ws.example', DATABRICKS_CLIENT_ID: 'id', DATABRICKS_CLIENT_SECRET: 's', DM_APP_NAME: 'agent-bricks-dm' };
-    expect(await resolveDmUrl(env, fetchFn as any)).toBe('https://agent-bricks-dm-1.example');
+    expect(await resolveDmUrl(env, fetchFn)).toBe('https://agent-bricks-dm-1.example');
     expect(fetchFn.mock.calls[1][0]).toBe('https://ws.example/api/2.0/apps/agent-bricks-dm');
   });
   it('normalises hosts', () => {
