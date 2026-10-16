@@ -368,3 +368,47 @@ async def test_other_players_session_is_rejected(mem_store, capture_run):
     with pytest.raises(PermissionError):
         await invoke({"messages": [{"role": "user", "content": "hi"}], "actor": "intruder"}, ctx("s-taken"))
     assert capture_run == []
+
+
+class FakeAuth:
+    def __init__(self, principal):
+        self.principal = principal
+
+    def namespace(self, kind, value):
+        return f"{self.principal}:{kind}:{value}"
+
+    def client_for(self, mode):
+        raise AssertionError("not used")
+
+
+def authed_ctx(principal, session="s-auth"):
+    return SimpleNamespace(invocation_id="inv-1", session_id=session, emit=AsyncMock(), request_auth=FakeAuth(principal))
+
+
+@pytest.mark.asyncio
+async def test_authenticated_player_owns_new_adventure_and_payload_actor_is_ignored(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    await invoke({"messages": [], "new_game": {"name": "Elowen", "archetype": "mage"}, "actor": "spoofed"},
+                 authed_ctx("alice"))
+    assert mem_store.owner("s-auth") == "alice:player:self"
+    assert capture_run[0]["actor"] == "alice:player:self"
+
+
+@pytest.mark.asyncio
+async def test_authenticated_player_cannot_use_another_players_adventure(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    mem_store.create_adventure("s-auth", "alice:player:self", "Elowen", "mage")
+    with pytest.raises(PermissionError):
+        await invoke({"messages": [{"role": "user", "content": "hi"}], "actor": "alice:player:self"},
+                     authed_ctx("mallory"))
+
+
+def test_agent_toml_requires_user_auth():
+    import tomllib
+    from pathlib import Path
+
+    doc = tomllib.loads((Path(__file__).resolve().parents[1] / "agent.toml").read_text())
+    assert doc["auth"]["user"]["required"] is True
+    assert doc["tracing"]["experiment_name"] == "/Shared/databricks-adventure/dm-traces"

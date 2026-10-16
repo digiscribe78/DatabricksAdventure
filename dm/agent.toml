@@ -11,4 +11,7 @@ name = "dm-vhiyme-memory"
 name = "dm-vhiyme-sessions"
 
 [tracing]
-experiment_name = "/Shared/agentbricks_traces/dm-vhiyme"
+experiment_name = "/Shared/databricks-adventure/dm-traces"
+
+[auth.user]
+required = true
