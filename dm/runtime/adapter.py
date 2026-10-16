@@ -42,7 +42,14 @@ def _agent_input(payload: dict[str, Any]) -> Any:
     messages = payload.get("messages") or []
     if not isinstance(messages, list):
         raise ValueError("messages must be a list")
-    return {"messages": messages}
+    # Trust boundary: players may only speak as the user. System, assistant and tool messages,
+    # and message ids (which would overwrite history), are never accepted from clients.
+    cleaned = []
+    for m in messages:
+        if not (isinstance(m, dict) and m.get("role") == "user" and isinstance(m.get("content"), str)):
+            raise ValueError("only user messages with string content are accepted")
+        cleaned.append({"role": "user", "content": m["content"]})
+    return {"messages": cleaned}
 
 
 async def invoke(value: Any, context: InvocationContext) -> dict:

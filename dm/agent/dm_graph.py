@@ -5,9 +5,17 @@ and turn events are built in code from tool results.
 """
 
 import json
+import logging
 from typing import Annotated, Any, TypedDict
 
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    AnyMessage,
+    HumanMessage,
+    RemoveMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -16,6 +24,8 @@ from langgraph.prebuilt import ToolNode
 from agent.prompts import COMPOSE_SYSTEM, OPENING_CUE, render_dm_system
 from rpg.turn import ComposeOutput, TurnEvent, TurnOutput
 from rpg.world import DEFAULT_CHARACTER, LOCATIONS, START_LOCATION_ID, Character
+
+logger = logging.getLogger(__name__)
 
 MAX_TOOL_CALLS_PER_TURN = 6
 
@@ -31,6 +41,7 @@ class DMState(TypedDict, total=False):
     character: dict
     location_id: str
     turn: dict | None
+    reason_failed: bool
 
 
 def _current_turn(messages: list[AnyMessage]) -> list[AnyMessage]:
@@ -92,7 +103,13 @@ def compose_turn(
             prose = result if isinstance(result, ComposeOutput) else ComposeOutput.model_validate(result)
             return TurnOutput.from_compose(prose, location_id, events)
         except Exception:  # noqa: BLE001 - any model/parse failure falls through to retry/fallback
-            continue
+            logger.warning("compose attempt failed", exc_info=True)
+    return fallback_turn(location_id, events, previous_choices)
+
+
+def fallback_turn(
+    location_id: str, events: list[TurnEvent], previous_choices: list[str] | None
+) -> TurnOutput:
     fallback = ComposeOutput(narration=FALLBACK_NARRATION, choices=previous_choices or FALLBACK_CHOICES)
     return TurnOutput.from_compose(fallback, location_id, events)
 
@@ -115,7 +132,11 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None):
         character = Character.model_validate(state["character"])
         location = LOCATIONS[state["location_id"]]
         system = SystemMessage(render_dm_system(character, location))
-        return {"messages": [reasoner.invoke([system, *_sendable(state["messages"])])]}
+        try:
+            return {"messages": [reasoner.invoke([system, *_sendable(state["messages"])])]}
+        except Exception:  # noqa: BLE001 - the world never breaks character; compose falls back
+            logger.warning("dm_reason model call failed", exc_info=True)
+            return {"reason_failed": True}
 
     def route(state: DMState) -> str:
         last = state["messages"][-1]
@@ -125,12 +146,22 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None):
         return "compose"
 
     def compose(state: DMState) -> dict:
+        messages = state["messages"]
         previous = (state.get("turn") or {}).get("choices")
-        turn = compose_turn(
-            llm, state["messages"], state["location_id"], roll_events(state["messages"]), previous
-        )
+        events = roll_events(messages)
+        if state.get("reason_failed"):
+            turn = fallback_turn(state["location_id"], events, previous)
+        else:
+            turn = compose_turn(llm, messages, state["location_id"], events, previous)
+        # Keep history provider-valid with one assistant message per turn: drop dm_reason's
+        # draft prose, or its tool calls that the budget left unanswered.
+        removals = [RemoveMessage(id=messages[-1].id)] if isinstance(messages[-1], AIMessage) else []
         text = turn.narration + "\n\n" + "\n".join(f"- {c}" for c in turn.choices)
-        return {"turn": turn.model_dump(), "messages": [AIMessage(content=text)]}
+        return {
+            "turn": turn.model_dump(),
+            "messages": [*removals, AIMessage(content=text)],
+            "reason_failed": False,
+        }
 
     builder = StateGraph(DMState)
     builder.add_node("load_state", load_state)

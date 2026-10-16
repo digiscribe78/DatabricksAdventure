@@ -140,3 +140,39 @@ def test_state_persists_across_turns_in_a_session():
     assert second["location_id"] == START_LOCATION_ID
     humans = [m for m in second["messages"] if isinstance(m, HumanMessage)]
     assert [h.content for h in humans] == ["Hi", "Hello again"]
+
+
+def test_budget_exhaustion_leaves_valid_history_for_next_turn():
+    looping = [AIMessage(content="", tool_calls=[call(idx=i)]) for i in range(MAX_TOOL_CALLS_PER_TURN + 1)]
+    model = ScriptedModel(replies=[*looping, AIMessage(content="ok")], structured=[PROSE, PROSE])
+    graph = make(model)
+    run(graph, "I keep rolling.")
+    turn = run(graph, "Now I stop.")["turn"]  # the fake fails like a provider on an orphan tool_use
+    assert turn["narration"] == PROSE.narration
+
+
+def test_parallel_calls_crossing_budget_leave_valid_history():
+    first = AIMessage(content="", tool_calls=[call(idx=i) for i in range(5)])
+    over = AIMessage(content="", tool_calls=[call(idx=10), call(idx=11)])
+    model = ScriptedModel(replies=[first, over, AIMessage(content="ok")], structured=[PROSE, PROSE])
+    graph = make(model)
+    run(graph, "Roll everything.")
+    assert run(graph, "Next.")["turn"]["narration"] == PROSE.narration
+
+
+def test_one_assistant_message_per_turn_in_history():
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[call()]), AIMessage(content="hidden draft prose")],
+        structured=[PROSE],
+    )
+    out = run(make(model), "I haggle.")
+    prose = [m for m in out["messages"] if isinstance(m, AIMessage) and not m.tool_calls]
+    assert len(prose) == 1
+    assert "hidden draft prose" not in prose[0].content
+
+
+def test_reason_model_error_gives_in_world_fallback():
+    model = ScriptedModel(replies=[RuntimeError("gateway 429")], structured=[])
+    turn = run(make(model), "Hi")["turn"]
+    assert turn["narration"] == FALLBACK_NARRATION
+    assert model.structured_calls == []  # no second model call after a failed reason step

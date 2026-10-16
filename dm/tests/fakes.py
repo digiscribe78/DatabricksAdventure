@@ -2,12 +2,24 @@
 
 from collections import deque
 
+from langchain_core.messages import AIMessage, ToolMessage
+
+
+def assert_provider_valid(messages):
+    """Fail like a real provider would: every tool_call needs a ToolMessage answering it."""
+    for i, m in enumerate(messages):
+        if isinstance(m, AIMessage) and m.tool_calls:
+            answered = {t.tool_call_id for t in messages[i + 1:] if isinstance(t, ToolMessage)}
+            missing = [c["id"] for c in m.tool_calls if c["id"] not in answered]
+            assert not missing, f"tool_use without tool_result: {missing}"
+
 
 class _Structured:
     def __init__(self, parent):
         self.parent = parent
 
     def invoke(self, messages):
+        assert_provider_valid(messages)
         self.parent.structured_calls.append(list(messages))
         item = self.parent.structured.popleft()
         if isinstance(item, Exception):
@@ -32,5 +44,9 @@ class ScriptedModel:
         return _Structured(self)
 
     def invoke(self, messages):
+        assert_provider_valid(messages)
         self.reason_calls.append(list(messages))
-        return self.replies.popleft()
+        reply = self.replies.popleft()
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
