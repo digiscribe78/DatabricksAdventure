@@ -1,0 +1,104 @@
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+<h2>Retro styling — 90s Amiga / Bard's Tale vibe</h2>
+<p class="subtitle">Same layout A (story left, curtain right), two takes on the retro look. The curtain becomes an in-world "Scrying Glass". Pick the vibe — click to select.</p>
+
+<style>
+  .amiga { font-family:'VT323',monospace; font-size:17px; background:#0000aa; color:#fff; padding:10px; border-radius:2px; }
+  .stone { border:6px solid; border-color:#bbb #555 #555 #bbb; background:#777; padding:4px; }
+  .stone.gold { border-color:#f0c040 #8a5a10 #8a5a10 #f0c040; background:#5a3a10; }
+  .view { height:150px; background:
+            repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 2px,transparent 2px 4px),
+            linear-gradient(#3a5ca8 0 45%,#2f6b3a 45% 70%,#6a8ad0 70%); display:flex; align-items:flex-end; justify-content:center; color:#ff0; text-shadow:2px 2px #000; image-rendering:pixelated; }
+  .msg { background:#000088; color:#fff; padding:6px 8px; line-height:1.15; min-height:90px; }
+  .msg .hl { color:#ffff55; }
+  .opt { color:#55ffff; }
+  .roster { width:100%; border-collapse:collapse; font-size:16px; background:#000; color:#fff; }
+  .roster td,.roster th { padding:1px 6px; text-align:left; } .roster th { color:#ffff55; }
+  .scry { background:#001400; color:#33ff66; font-family:'VT323',monospace; font-size:15px; line-height:1.15; padding:6px; min-height:250px; text-shadow:0 0 4px #33ff66;
+          background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.35) 0 1px,transparent 1px 3px); }
+  .scry .t { color:#ffbf00; text-shadow:0 0 4px #ffbf00; }
+  .pill { display:inline-block; border:1px solid #33ff66; padding:0 3px; margin:1px; } .pill.on { background:#33ff66; color:#001400; }
+  .title8 { font-family:'Press Start 2P',monospace; font-size:10px; color:#ffff55; text-align:center; margin:2px 0 6px; letter-spacing:1px; }
+  .grid { display:grid; grid-template-columns: 3fr 2fr; gap:8px; }
+  /* B: painted / modern-retro */
+  .b { font-family:'VT323',monospace; font-size:18px; background:#1b1424; color:#eadfc8; padding:10px; }
+  .frame { border:3px solid #c8a24a; box-shadow:0 0 0 3px #3a2a10, inset 0 0 0 2px #6b4f1d; background:#120d18; padding:6px; }
+  .bview { height:150px; background:linear-gradient(160deg,#41306b,#c2643c 60%,#f2c46b); display:flex; align-items:flex-end; padding:6px; color:#fff; text-shadow:1px 1px 2px #000; }
+  .bbtn { border:2px solid #c8a24a; padding:1px 6px; margin:3px 0; color:#f2d48a; background:#2a1e33; }
+  .bscry { background:#0d0a14; color:#b9a8ff; font-size:16px; line-height:1.15; padding:6px; min-height:250px; }
+  .bscry .t { color:#f2c46b; }
+</style>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Full Bard's Tale — stone frames, blue text window, party roster, green phosphor scrying glass</h3>
+      <p>Faithful to the 1988–91 Amiga look: bevelled stone borders, 16-colour palette, chunky VT323/Press Start text, pixel-art scene viewport. Curtain = a green-phosphor CRT "Scrying Glass". Maximum nostalgia; slightly harder to read for long sessions.</p>
+      <div class="amiga">
+        <div class="title8">THE KINGDOM OF SPARKIA</div>
+        <div class="grid">
+          <div>
+            <div class="stone"><div class="view">THE DELTA CROSSING</div></div>
+            <div class="stone" style="margin-top:6px"><div class="msg">
+              The river runs in versioned layers, each current a different day. A hooded <span class="hl">Ferryman</span> eyes thy satchel.<br><br>
+              <span class="opt">(1)</span> Pay the ferryman<br>
+              <span class="opt">(2)</span> Wade across &nbsp;[MIGHT DC12]<br>
+              <span class="opt">(3)</span> Ask about the old bridge<br>
+              &gt; _
+            </div></div>
+          </div>
+          <div class="stone gold"><div class="scry">
+            <div class="t">~ SCRYING GLASS ~</div>
+            <span class="pill">GUARD</span><span class="pill">LOAD</span><span class="pill on">REASON</span><span class="pill">TOOLS</span><span class="pill">COMPOSE</span><span class="pill">COMMIT</span><br><br>
+            &gt; search_lore("ferryman")<br>&nbsp;&nbsp;3 scrolls · delta-crossing p.2 <span class="t">[?]</span><br>
+            &gt; roll_check(MIGHT,12)<br>&nbsp;&nbsp;D20=9 +3 = 12 ... PASS <span class="t">[?]</span><br>
+            &gt; memory: spared the thief <span class="t">[?]</span><br>
+            &gt; commit: hp 14/18<br><br>
+            2.1k tok · 1.8s · <u>OPEN TRACE</u>
+          </div></div>
+        </div>
+        <table class="roster" style="margin-top:6px">
+          <tr><th>#</th><th>CHARACTER</th><th>CLASS</th><th>MIG</th><th>WIT</th><th>CHA</th><th>HP</th><th>GOLD</th></tr>
+          <tr><td>1</td><td>BRANNOC</td><td>WARRIOR</td><td>+3</td><td>+0</td><td>+1</td><td>14/18</td><td>12</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Modern-retro — pixel type &amp; gilded frames, richer painted art, softer palette</h3>
+      <p>Keeps the vibe (pixel font, framed viewport, roster strip) but with a moodier palette, painterly Kling art and easier long-form reading. Feels like a modern indie homage (think "Legend of Grimrock meets Bard's Tale").</p>
+      <div class="b">
+        <div class="grid">
+          <div>
+            <div class="frame"><div class="bview">The Delta Crossing</div></div>
+            <div class="frame" style="margin-top:6px">
+              The river runs in versioned layers, each current a different day. A hooded <b style="color:#f2c46b">Ferryman</b> eyes your satchel.
+              <div class="bbtn">⚔ Pay the ferryman</div><div class="bbtn">🎲 Wade across — Might DC 12</div><div class="bbtn">💬 Ask about the old bridge</div>
+            </div>
+            <div class="frame" style="margin-top:6px">BRANNOC · Warrior · HP ▮▮▮▮▮▮▮▯▯ 14/18 · M+3 W+0 C+1 · 12 gp</div>
+          </div>
+          <div class="frame"><div class="bscry">
+            <div class="t">✦ Scrying Glass ✦</div>
+            guard · load · <b class="t">reason</b> · tools · compose · commit<br><br>
+            📚 search_lore("ferryman") → 3 chunks <span class="t">(?)</span><br>
+            🎲 roll_check(Might, 12) → 9+3=12 ✓ <span class="t">(?)</span><br>
+            🧠 memory: spared the thief <span class="t">(?)</span><br>
+            💾 hp 14/18<br><br>
+            2.1k tokens · 1.8s · <u>open trace ↗</u>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:14px">
+  <h3>Knock-on for the Kling images</h3>
+  <p>A → prompt for <b>16-bit pixel art, 320×200 Amiga palette, dithered</b> (Kling may need a pixelation post-process to look authentic). B → <b>painterly dark-fantasy illustrations</b>, Kling's sweet spot, lightly framed.</p>
+</div>
