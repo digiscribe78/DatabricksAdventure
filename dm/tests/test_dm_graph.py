@@ -176,3 +176,40 @@ def test_reason_model_error_gives_in_world_fallback():
     turn = run(make(model), "Hi")["turn"]
     assert turn["narration"] == FALLBACK_NARRATION
     assert model.structured_calls == []  # no second model call after a failed reason step
+
+
+def test_lore_tool_result_becomes_lore_event(monkeypatch):
+    import agent.tools.lore as lore
+    from agent.tools.lore import search_lore
+
+    passage = {"text": "t", "source": "delta-crossing", "page": 1, "doc_type": "location", "location_id": "delta-crossing"}
+    monkeypatch.setattr(lore, "SEARCH", lambda q, s: [passage])
+    lore_call = {"name": "search_lore", "args": {"query": "the river"}, "id": "lore-0", "type": "tool_call"}
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[lore_call]), AIMessage(content="draft")],
+        structured=[PROSE],
+    )
+    graph = build_dm_graph(model, [roll_check, search_lore], checkpointer=InMemorySaver())
+    events = run(graph, "Tell me about the river.")["turn"]["events"]
+    assert [e["type"] for e in events] == ["lore"]
+    assert events[0]["summary"] == "Lore: 1 passages for 'the river' (delta-crossing)"
+    assert events[0]["detail"]["passages"] == [passage]
+
+
+def test_failed_lore_lookup_still_completes_turn(monkeypatch):
+    import agent.tools.lore as lore
+    from agent.tools.lore import search_lore
+
+    def boom(q, s):
+        raise RuntimeError("down")
+
+    monkeypatch.setattr(lore, "SEARCH", boom)
+    lore_call = {"name": "search_lore", "args": {"query": "x"}, "id": "lore-0", "type": "tool_call"}
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[lore_call]), AIMessage(content="draft")],
+        structured=[PROSE],
+    )
+    graph = build_dm_graph(model, [roll_check, search_lore], checkpointer=InMemorySaver())
+    turn = run(graph, "Tell me a legend.")["turn"]
+    assert turn["narration"] == PROSE.narration
+    assert turn["events"] == []

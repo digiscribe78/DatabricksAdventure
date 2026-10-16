@@ -64,20 +64,33 @@ def _tool_result(message: ToolMessage) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def roll_events(messages: list[AnyMessage]) -> list[TurnEvent]:
+def _roll_event(r: dict) -> TurnEvent:
+    verdict = "success" if r["success"] else "failure"
+    summary = (
+        f"{r['stat'].title()} check: {r['roll']} {r['modifier']:+d} = {r['total']} "
+        f"vs DC {r['dc']}, {verdict}"
+    )
+    return TurnEvent(type="roll", summary=summary, detail=r)
+
+
+def _lore_event(r: dict) -> TurnEvent:
+    passages = r.get("passages", [])
+    sources = ", ".join(dict.fromkeys(p["source"] for p in passages)) or "nothing found"
+    summary = f"Lore: {len(passages)} passages for '{r['query']}' ({sources})"
+    return TurnEvent(type="lore", summary=summary, detail=r)
+
+
+_EVENT_BUILDERS = {"roll_check": _roll_event, "search_lore": _lore_event}
+
+
+def turn_events(messages: list[AnyMessage]) -> list[TurnEvent]:
+    """Build curtain events in code from this turn's successful tool results."""
     events = []
     for m in _current_turn(messages):
-        if not (isinstance(m, ToolMessage) and m.name == "roll_check"):
-            continue
-        r = _tool_result(m)
-        if not r or "error" in r:
-            continue
-        verdict = "success" if r["success"] else "failure"
-        summary = (
-            f"{r['stat'].title()} check: {r['roll']} {r['modifier']:+d} = {r['total']} "
-            f"vs DC {r['dc']}, {verdict}"
-        )
-        events.append(TurnEvent(type="roll", summary=summary, detail=r))
+        build = _EVENT_BUILDERS.get(getattr(m, "name", None)) if isinstance(m, ToolMessage) else None
+        r = _tool_result(m) if build else None
+        if r and "error" not in r:
+            events.append(build(r))
     return events
 
 
@@ -148,7 +161,7 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None):
     def compose(state: DMState) -> dict:
         messages = state["messages"]
         previous = (state.get("turn") or {}).get("choices")
-        events = roll_events(messages)
+        events = turn_events(messages)
         if state.get("reason_failed"):
             turn = fallback_turn(state["location_id"], events, previous)
         else:
