@@ -1,0 +1,4 @@
+command: ['npm', 'run', 'start']
+env:
+  - name: DM_APP_NAME
+    value: agent-bricks-dm
