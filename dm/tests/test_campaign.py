@@ -51,3 +51,16 @@ def test_every_gate_flag_has_an_in_world_hint():
     for loc in LOCATIONS.values():
         for flag in loc.gates.values():
             assert flag in FLAG_HINTS and "_" not in FLAG_HINTS[flag]
+
+
+def test_story_so_far_lists_unrecorded_beats_for_this_act():
+    one = story_so_far({}, "medallion-inn")
+    assert "set_quest_flag" in one
+    assert "vowed_to_find_aldric" in one and "spoke_with_aldric" in one
+    assert "seal_forge" not in one  # Act 2 beats aren't listed in Act 1
+    done = story_so_far({"vowed_to_find_aldric": "yes"}, "medallion-inn")
+    assert "vowed_to_find_aldric:" not in done  # recorded beats drop off the list
+    two = story_so_far({"spoke_with_aldric": "yes"}, "spark-forge")
+    assert "seal_forge" in two and "vowed_to_find_aldric" not in two
+    finale = story_so_far({"has_catalog": "yes"}, "silos-keep")
+    assert "ending" in finale and "silo_wounds" in finale

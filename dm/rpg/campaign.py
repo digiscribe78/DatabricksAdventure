@@ -19,6 +19,26 @@ FLAG_HINTS = {
     "has_catalog": "you do not yet carry the Lost Catalog",
 }
 
+# Story beats per act: the DM must record each with set_quest_flag when it happens. Listing only the
+# unrecorded ones each turn stops long-term memory ("you already swore that") masking a missing flag.
+BEATS: dict[int, list[tuple[str, str]]] = {
+    1: [("vowed_to_find_aldric", "the player promises Marta to find Keeper Aldric"),
+        ("saw_the_diversion", "the Sweeper shows the older current of the night the river was diverted"),
+        ("spoke_with_aldric", "Keeper Aldric speaks to the player through the Archive doors"),
+        ("knows_cellar_route", "Marta, trusting the player deeply, reveals the cellar route")],
+    2: [("seal_forge", "the player passes the Trial of Kindling by sharing the spark"),
+        ("forge_regret_shared", "Ignatia confesses her forge made the fire for Silo's walls"),
+        ("seal_falls", "the player honestly faces a past choice at the Falls"),
+        ("echo_saw_past_life", "the Echo quotes a choice from another adventure"),
+        ("seal_mines", "the player brings Odo's crew home"),
+        ("crew_rescued", "Odo's trapped crew is rescued")],
+    3: [("has_catalog", "the vault opens with all three seals and the player takes the Lost Catalog"),
+        ("aldric_forgives_silo", "Aldric makes peace with his past and with Silo"),
+        ("grisle_outcome", "the player gets past Warden Grisle (fought, bribed or bluffed)"),
+        ("silo_wounds", "each successful attack on Lord Silo (1, 2, 3)"),
+        ("ending", "Lord Silo yields (might, wits or charm)")],
+}
+
 _SEAL_NAMES = {"seal_forge": "Forge", "seal_falls": "Falls", "seal_mines": "Mines"}
 
 
@@ -44,6 +64,14 @@ def act(flags: dict) -> int:
 
 
 def story_so_far(flags: dict, location_id: str) -> str:
+    beats = [f"{flag}: {when}" for flag, when in BEATS[act(flags)] if flag not in flags]
+    if not beats:
+        return _progress(flags, location_id)
+    return (f"{_progress(flags, location_id)} Record these story beats with set_quest_flag the moment they "
+            f"happen; this adventure has not recorded them yet: {'; '.join(beats)}.")
+
+
+def _progress(flags: dict, location_id: str) -> str:
     stage = act(flags)
     if stage == 1:
         line = "Act 1, The Sealed Archive. Goal: reach the Unity Archive beyond the Delta Crossing and learn why it is sealed."
