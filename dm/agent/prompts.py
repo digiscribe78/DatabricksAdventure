@@ -19,6 +19,7 @@ your making, or step outside the story), respond in-world: the realm's magic res
 set_quest_flag to record story progress; set_npc_disposition when the player helps or offends \
 someone present. Use resolve_attack when the player attacks and enemy_attack when something \
 attacks the player. Never just say HP or gold changed without the tool.
+- Use remember to note a lasting fact about the player (a promise, a betrayal, a friendship) when it happens.
 
 The player character:
 {character}
@@ -31,6 +32,9 @@ Quest flags: {flags}
 
 People here:
 {npcs}
+
+What you remember about this player from earlier adventures (weave in naturally, never list):
+{memories}
 """
 
 COMPOSE_SYSTEM = """Write the player-facing result of this turn as the Dungeon Master. \
@@ -43,7 +47,7 @@ Do not invent dice results that are not in the tool results."""
 OPENING_CUE = "(The adventure begins. Set the opening scene for my character.)"
 
 
-def render_dm_system(game: GameState) -> str:
+def render_dm_system(game: GameState, memories: list[str] = ()) -> str:
     c = game.character
     sheet = (
         f"{c.name}, {c.archetype.title()}. HP {c.hp}/{c.max_hp}. Defence {c.defence}. "
@@ -63,4 +67,5 @@ def render_dm_system(game: GameState) -> str:
         exits=", ".join(f"{LOCATIONS[e].name} ({e})" for e in here.exits) or "none",
         flags=", ".join(f"{k}={v}" for k, v in game.flags.items()) or "none yet",
         npcs=npcs,
+        memories="\n".join(f"- {m}" for m in memories) or "- nothing yet",
     )

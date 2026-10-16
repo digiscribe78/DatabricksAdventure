@@ -5,6 +5,7 @@ and turn events are built in code from tool results.
 """
 
 import json
+from collections.abc import Callable
 import logging
 from typing import Annotated, Any, TypedDict
 
@@ -60,6 +61,8 @@ class DMState(TypedDict, total=False):
     commit_failed: bool
     turn: dict | None
     reason_failed: bool
+    memories: list[str]
+    memories_new: bool
 
 
 def _game(state: DMState) -> GameState:
@@ -115,8 +118,13 @@ def _attack_event(r: dict) -> TurnEvent:
     return TurnEvent(type="attack", summary=summary, detail=r)
 
 
+def _memory_event(r: dict) -> TurnEvent:
+    return TurnEvent(type="memory", summary="Memory: " + str(r.get("result", r))[:120], detail=r)
+
+
 _EVENT_BUILDERS = {"roll_check": _roll_event, "search_lore": _lore_event,
-                   "resolve_attack": _attack_event, "enemy_attack": _attack_event}
+                   "resolve_attack": _attack_event, "enemy_attack": _attack_event,
+                   "remember": _memory_event, "recall": _memory_event}
 
 
 def turn_events(messages: list[AnyMessage]) -> list[TurnEvent]:
@@ -124,7 +132,11 @@ def turn_events(messages: list[AnyMessage]) -> list[TurnEvent]:
     events = []
     for m in _current_turn(messages):
         build = _EVENT_BUILDERS.get(getattr(m, "name", None)) if isinstance(m, ToolMessage) else None
-        r = _tool_result(m) if build else None
+        if build is None or getattr(m, "status", "success") == "error":
+            continue
+        r = _tool_result(m)
+        if r is None and build is _memory_event:  # memory tools return plain text
+            r = {"result": m.content}
         if r and "error" not in r:
             events.append(build(r))
     return events
@@ -182,7 +194,8 @@ def fallback_turn(
     return TurnOutput.from_compose(fallback, location_id, events)
 
 
-def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *, store: GameStore):
+def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *, store: GameStore,
+                   recall: Callable[[str], list[str]] | None = None):
     reasoner = llm.bind_tools(tools)
 
     def _sid(config: RunnableConfig) -> str:
@@ -199,10 +212,20 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         messages = state.get("messages") or []
         if not messages or not isinstance(messages[-1], HumanMessage):
             update["messages"] = [HumanMessage(OPENING_CUE)]
+        if recall is not None and "memories" not in state:
+            try:
+                memories = recall(config["configurable"].get("actor_id") or _sid(config))
+            except Exception:  # noqa: BLE001 - memory is a bonus; never break the turn
+                logger.warning("memory recall failed", exc_info=True)
+                memories = []
+            update["memories"] = memories
+            update["memories_new"] = bool(memories)
+        else:
+            update["memories_new"] = False
         return update
 
     def dm_reason(state: DMState) -> dict:
-        system = SystemMessage(render_dm_system(_game(state)))
+        system = SystemMessage(render_dm_system(_game(state), state.get("memories") or []))
         try:
             return {"messages": [reasoner.invoke([system, *_context(state["messages"])])]}
         except Exception:  # noqa: BLE001 - the world never breaks character; compose falls back
@@ -244,6 +267,10 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
             removals = [RemoveMessage(id=m.id) for m in _current_turn(messages)
                         if not isinstance(m, HumanMessage)]
         else:
+            if state.get("memories_new"):
+                n = len(state["memories"])
+                events.insert(0, TurnEvent(type="memory", summary=f"Memory: recalled {n} thing{'s' if n != 1 else ''} about you",
+                                           detail={"memories": state["memories"]}))
             if state.get("state_summaries"):
                 events.append(TurnEvent(type="state", summary="; ".join(state["state_summaries"]),
                                         detail={"changes": state.get("staged") or []}))

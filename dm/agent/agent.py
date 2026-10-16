@@ -106,7 +106,9 @@ async def create_agent_graph(
     llm = _RoutedChatDatabricks(
         endpoint=model or MODEL, workspace_client=workspace_client(), use_ai_gateway=True
     )
-    return build_dm_graph(llm, tools, checkpointer=checkpointer(), store=game_store())
+    from agent.memory import recall_memories
+
+    return build_dm_graph(llm, tools, checkpointer=checkpointer(), store=game_store(), recall=recall_memories)
 
 
 async def recovery_input(
