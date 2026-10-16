@@ -90,9 +90,9 @@ def test_tool_budget_stops_runaway_loop_and_drops_unanswered_call():
     looping = [AIMessage(content="", tool_calls=[call(idx=i)]) for i in range(MAX_TOOL_CALLS_PER_TURN + 1)]
     model = ScriptedModel(replies=looping, structured=[PROSE])
     out = run(make(model), "I keep rolling.")
-    tool_msgs = [m for m in out["messages"] if isinstance(m, ToolMessage)]
-    assert len(tool_msgs) == MAX_TOOL_CALLS_PER_TURN
     compose_input = model.structured_calls[0]
+    tool_msgs = [m for m in compose_input if isinstance(m, ToolMessage)]  # saved history is compacted
+    assert len(tool_msgs) == MAX_TOOL_CALLS_PER_TURN
     last_non_system = [m for m in compose_input if not isinstance(m, SystemMessage)][-1]
     assert not getattr(last_non_system, "tool_calls", None)
     assert len(out["turn"]["events"]) == MAX_TOOL_CALLS_PER_TURN
@@ -386,3 +386,37 @@ def test_turn_for_another_players_adventure_is_refused():
     with pytest.raises(PermissionError):
         graph.invoke({"messages": [{"role": "user", "content": "hi"}]},
                      {"configurable": {"thread_id": "t1", "actor_id": "someone-else"}})
+
+
+from agent.dm_graph import HISTORY_TURNS
+
+
+def test_finished_turn_is_compacted_to_player_and_narration():
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[call()]), AIMessage(content="draft")], structured=[PROSE]
+    )
+    out = run(make(model), "I haggle with Marta.")
+    assert [type(m).__name__ for m in out["messages"]] == ["HumanMessage", "AIMessage"]
+    assert not out["messages"][-1].tool_calls
+    assert out["turn"]["events"][0]["type"] == "roll"  # events still built from the tool results
+
+
+def test_current_turn_keeps_its_tool_results_while_reasoning():
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[call()]), AIMessage(content="draft")], structured=[PROSE]
+    )
+    run(make(model), "I haggle with Marta.")
+    second_reason_input = model.reason_calls[1]
+    assert any(isinstance(m, ToolMessage) for m in second_reason_input)
+
+
+def test_model_sees_at_most_history_turns_past_turns():
+    turns = HISTORY_TURNS + 3
+    model = ScriptedModel(replies=[AIMessage(content="ok")] * turns, structured=[PROSE] * turns)
+    graph = make(model)
+    for i in range(turns):
+        run(graph, f"turn {i}")
+    for sent in (model.reason_calls[-1], model.structured_calls[-1]):
+        humans = [m.content for m in sent if isinstance(m, HumanMessage)]
+        assert len(humans) == HISTORY_TURNS + 1
+        assert humans[-1] == f"turn {turns - 1}"

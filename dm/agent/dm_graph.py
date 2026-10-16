@@ -30,6 +30,7 @@ from rpg.turn import ComposeOutput, TurnEvent, TurnOutput
 logger = logging.getLogger(__name__)
 
 MAX_TOOL_CALLS_PER_TURN = 6
+HISTORY_TURNS = 8  # past turns the model sees, besides the current one
 
 FALLBACK_NARRATION = (
     "A strange mist rolls through, and for a moment the world seems to hold its breath. "
@@ -136,6 +137,18 @@ def _sendable(messages: list[AnyMessage]) -> list[AnyMessage]:
     return messages
 
 
+def _context(messages: list[AnyMessage]) -> list[AnyMessage]:
+    """What the model sees: the current turn in full plus the last HISTORY_TURNS past turns.
+
+    Past turns are already compacted to player message + narration (see compose), so this
+    keeps every model call a bounded size however long the adventure runs.
+    """
+    starts = [i for i, m in enumerate(messages) if isinstance(m, HumanMessage)]
+    if len(starts) > HISTORY_TURNS + 1:
+        messages = messages[starts[-(HISTORY_TURNS + 1)]:]
+    return _sendable(messages)
+
+
 def compose_turn(
     llm: Any,
     messages: list[AnyMessage],
@@ -151,7 +164,7 @@ def compose_turn(
             "\n\nState changes applied this turn (narrate consistently with these; if the player was "
             f"downed they collapse and wake at the Medallion Inn): {'; '.join(applied)}"
         )
-    prompt = [SystemMessage(system), *_sendable(messages)]
+    prompt = [SystemMessage(system), *_context(messages)]
     for _ in range(2):  # one attempt plus one repair retry
         try:
             result = structured.invoke(prompt)
@@ -191,7 +204,7 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
     def dm_reason(state: DMState) -> dict:
         system = SystemMessage(render_dm_system(_game(state)))
         try:
-            return {"messages": [reasoner.invoke([system, *_sendable(state["messages"])])]}
+            return {"messages": [reasoner.invoke([system, *_context(state["messages"])])]}
         except Exception:  # noqa: BLE001 - the world never breaks character; compose falls back
             logger.warning("dm_reason model call failed", exc_info=True)
             return {"reason_failed": True}
@@ -236,7 +249,12 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
                                         detail={"changes": state.get("staged") or []}))
             turn = compose_turn(llm, messages, state["location_id"], events, previous,
                                 applied=state.get("state_summaries"))
-            removals = [RemoveMessage(id=messages[-1].id)] if isinstance(messages[-1], AIMessage) else []
+            # Compact the finished turn: drop dm_reason's draft prose and every tool call and result
+            # (calls and results go together, so history stays provider-valid). The trace keeps them.
+            removals = [
+                RemoveMessage(id=m.id) for m in _current_turn(messages)
+                if isinstance(m, ToolMessage) or (isinstance(m, AIMessage) and (m.tool_calls or m is messages[-1]))
+            ]
         text = turn.narration + "\n\n" + "\n".join(f"- {c}" for c in turn.choices)
         return {"turn": turn.model_dump(), "messages": [*removals, AIMessage(content=text)],
                 "reason_failed": False, "commit_failed": False}
