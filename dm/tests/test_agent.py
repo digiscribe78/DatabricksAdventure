@@ -209,3 +209,44 @@ async def test_agent_responds_end_to_end():
         )
     ]
     assert events
+
+
+@pytest.mark.asyncio
+async def test_serialize_events_emits_node_and_turn_events():
+    from langchain_core.messages import AIMessage
+
+    turn = {"narration": "n", "choices": ["a", "b"], "allow_free_text": True,
+            "location_id": "medallion-inn", "events": [], "game_over": None}
+    stream = _aiter([
+        ("updates", {"load_state": {"character": {}}}),
+        ("updates", {"compose": {"turn": turn, "messages": [AIMessage(content="n")]}}),
+    ])
+    events = [e async for e in _serialize_events(stream)]
+    assert events[0] == {"type": "node", "node": "load_state"}
+    assert events[1] == {"type": "node", "node": "compose"}
+    assert events[2]["type"] == "message"
+    assert events[3] == {"type": "turn", "turn": turn}
+
+
+@pytest.mark.asyncio
+async def test_serialize_events_tolerates_none_node_update():
+    stream = _aiter([("updates", {"load_state": None})])
+    events = [e async for e in _serialize_events(stream)]
+    assert events == [{"type": "node", "node": "load_state"}]
+
+
+@pytest.mark.asyncio
+async def test_invoke_returns_turn(monkeypatch):
+    import runtime.adapter as adapter
+
+    turn = {"narration": "n", "choices": ["a", "b"], "allow_free_text": True,
+            "location_id": "medallion-inn", "events": [], "game_over": None}
+
+    async def fake_run_agent(agent_input, **kwargs):
+        yield ("updates", {"compose": {"turn": turn, "messages": []}})
+
+    monkeypatch.setattr(adapter, "run_agent", fake_run_agent)
+    context = SimpleNamespace(invocation_id="inv-1", session_id="s-1", emit=AsyncMock())
+    result = await adapter.invoke({"messages": []}, context)
+    assert result["turn"] == turn
+    assert result["status"] == "completed"

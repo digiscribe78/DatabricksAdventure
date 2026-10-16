@@ -107,6 +107,7 @@ async def _invoke_agent(
             )
         ]
         run_kwargs["graph"] = graph
+    turn = None
     async for event in _serialize_events(
         run_agent(
             agent_input,
@@ -124,12 +125,15 @@ async def _invoke_agent(
                 400,
             )
         await context.emit(event)
+        if event.get("type") == "turn":
+            turn = event["turn"]
         if event.get("type") in ("message", "interrupt"):
             outputs.append(event)
 
     interrupted = bool(outputs and outputs[-1].get("type") == "interrupt")
     return {
         "output": [event["message"] if event["type"] == "message" else event for event in outputs],
+        "turn": turn,
         "status": "interrupted" if interrupted else "completed",
     }
 
@@ -141,10 +145,14 @@ async def _serialize_events(async_stream: AsyncIterator[Any]) -> AsyncGenerator[
                 for item in interrupts:
                     yield {"type": "interrupt", "id": item.id, "value": item.value}
                 continue
-            for node_data in payload.values():
-                messages = node_data.get("messages", []) if isinstance(node_data, dict) else []
-                for message in messages:
+            for node_name, node_data in payload.items():
+                yield {"type": "node", "node": node_name}
+                if not isinstance(node_data, dict):
+                    continue
+                for message in node_data.get("messages", []):
                     yield {"type": "message", "message": message.model_dump()}
+                if node_data.get("turn") is not None:
+                    yield {"type": "turn", "turn": node_data["turn"]}
         elif mode == "messages":
             try:
                 chunk = payload[0]

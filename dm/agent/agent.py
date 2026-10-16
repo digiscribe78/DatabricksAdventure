@@ -4,9 +4,8 @@ from typing import Any
 
 from databricks.sdk import WorkspaceClient
 from databricks_langchain import ChatDatabricks
-from langchain.agents import create_agent
-from langchain.agents.middleware import HumanInTheLoopMiddleware
 
+from agent.dm_graph import build_dm_graph
 from agent.mcps import build_mcp_servers
 
 # Importing the tools package auto-registers every tool module.
@@ -15,7 +14,6 @@ from databricks_agentkit import workspace_client, workspace_headers
 from databricks_agentkit.langgraph import (
     checkpointer,
     configure_tracing,
-    genie_tools,
     mcp_tools,
     memory_tools,
     start_trace,
@@ -27,14 +25,8 @@ from databricks_agentkit.langgraph.session_store import (
 )
 from databricks_agentkit.runtime.auth import AuthError
 
-# A Unity Catalog AI Gateway model service, served from the `system.ai` schema and queried through
-# the gateway (see `use_ai_gateway=True` below). Swap for any `system.ai.*` model service your
-# workspace exposes — the demo chat app's picker lists what's available.
-MODEL = "system.ai.claude-sonnet-4-5"
-
-# No tools require human approval in the RPG; the DM's tools are deterministic game mechanics.
-REQUIRE_APPROVAL: dict = {}
-
+# A Unity Catalog AI Gateway model (`system.ai.*`). Override with the DM_MODEL env var.
+MODEL = os.getenv("DM_MODEL", "system.ai.claude-sonnet-4-5")
 
 class _RoutedChatDatabricks(ChatDatabricks):
     """Forward account-host workspace routing to the underlying OpenAI clients."""
@@ -82,36 +74,21 @@ async def create_agent_graph(
     *,
     workspace_client_for: Callable[[str], WorkspaceClient] | None = None,
 ):
-    """Build the LangGraph agent: local tools + long-term-memory tools + any MCP tools.
+    """Build the Dungeon Master graph with local tools, long-term-memory tools and any MCP tools.
 
     ``actor`` is the identity whose long-term memory the agent reads/writes; it's captured in the
     memory tools' closures (never exposed to the model).
 
-    ``model`` selects the gateway model for this run; the chat UI passes the picker's choice and
+    ``model`` selects the gateway model for this run (a `model` field in the invocation input) and
     everything else falls back to ``MODEL``. The agent is rebuilt per turn, so the model can vary
     request to request.
     """
     mcp = await mcp_tools(build_mcp_servers(), workspace_client_for=workspace_client_for)
-    tools = [
-        *all_tools(),
-        *memory_tools(actor),
-        *genie_tools(workspace_client_for=workspace_client_for),
-        *mcp,
-    ]
-    middleware = (
-        [HumanInTheLoopMiddleware(interrupt_on=REQUIRE_APPROVAL)] if REQUIRE_APPROVAL else []
+    tools = [*all_tools(), *memory_tools(actor), *mcp]
+    llm = _RoutedChatDatabricks(
+        endpoint=model or MODEL, workspace_client=workspace_client(), use_ai_gateway=True
     )
-    endpoint = model or MODEL
-    return create_agent(
-        # use_ai_gateway routes to the Unity Catalog AI Gateway (`<host>/ai-gateway/mlflow/v1`), so
-        # `endpoint` is a `system.ai.*` model name rather than a serving-endpoint name.
-        model=_RoutedChatDatabricks(
-            endpoint=endpoint, workspace_client=workspace_client(), use_ai_gateway=True
-        ),
-        tools=tools,
-        middleware=middleware,
-        checkpointer=checkpointer(),
-    )
+    return build_dm_graph(llm, tools, checkpointer=checkpointer())
 
 
 async def recovery_input(
