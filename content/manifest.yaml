@@ -1,7 +1,11 @@
 # The world's table of contents. The ingest job uses `documents` to tag every lore chunk, and
-# the DM's `rpg.world.LOCATIONS` must match `locations` (enforced by dm/tests/test_manifest_sync.py).
+# the DM's `rpg.world.LOCATIONS` (with its gates) must match `locations` (enforced by
+# dm/tests/test_manifest_sync.py). Story bible: docs/superpowers/specs/2026-10-17-campaign-design.md
 documents:
   - file: world-primer.md
+    doc_type: primer
+    location_id: global
+  - file: campaign.md
     doc_type: primer
     location_id: global
   - file: rules.md
@@ -16,13 +20,78 @@ documents:
   - file: delta-crossing.md
     doc_type: location
     location_id: delta-crossing
+  - file: unity-archive.md
+    doc_type: location
+    location_id: unity-archive
+  - file: spark-forge.md
+    doc_type: location
+    location_id: spark-forge
+  - file: streaming-falls.md
+    doc_type: location
+    location_id: streaming-falls
+  - file: photon-mines.md
+    doc_type: location
+    location_id: photon-mines
+  - file: data-swamp.md
+    doc_type: location
+    location_id: data-swamp
+  - file: silos-keep.md
+    doc_type: location
+    location_id: silos-keep
 
 locations:
   - id: medallion-inn
     name: The Medallion Inn, Lakehouse Village
     lorebook: medallion-inn.md
-    exits: [delta-crossing]
+    exits:
+      - to: delta-crossing
+      - to: unity-archive
+        requires: knows_cellar_route
   - id: delta-crossing
     name: The Delta Crossing
     lorebook: delta-crossing.md
-    exits: [medallion-inn]
+    exits:
+      - to: medallion-inn
+      - to: unity-archive
+      - to: data-swamp
+        requires: has_catalog
+  - id: unity-archive
+    name: The Unity Archive
+    lorebook: unity-archive.md
+    exits:
+      - to: delta-crossing
+      - to: spark-forge
+        requires: spoke_with_aldric
+      - to: streaming-falls
+        requires: spoke_with_aldric
+      - to: photon-mines
+        requires: spoke_with_aldric
+      - to: medallion-inn
+        requires: knows_cellar_route
+  - id: spark-forge
+    name: The Spark Forge
+    lorebook: spark-forge.md
+    exits:
+      - to: unity-archive
+  - id: streaming-falls
+    name: The Streaming Falls
+    lorebook: streaming-falls.md
+    exits:
+      - to: unity-archive
+  - id: photon-mines
+    name: The Photon Mines
+    lorebook: photon-mines.md
+    exits:
+      - to: unity-archive
+  - id: data-swamp
+    name: The Data Swamp
+    lorebook: data-swamp.md
+    exits:
+      - to: delta-crossing
+      - to: silos-keep
+        requires: has_catalog
+  - id: silos-keep
+    name: Silo's Keep
+    lorebook: silos-keep.md
+    exits:
+      - to: data-swamp

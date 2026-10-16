@@ -10,7 +10,11 @@ The common room is low-beamed, smoky and always busy. A great hearth burns at on
 
 ## The Cellar
 
-Beneath the inn is a cellar of barrels and old stonework that is older than the village itself. Marta keeps it locked. Regulars claim that on still nights you can hear water running somewhere below the floor.
+Beneath the inn is a cellar of barrels and old stonework that is older than the village itself. Marta keeps it locked. Regulars claim that on still nights you can hear running water somewhere below the floor, as if a hidden stream passed beneath the inn on its way somewhere important.
+
+## Marta's Ledger
+
+Behind the bar sits a fat leather ledger in which Marta writes down every traveller who takes a room: name, trade, the road they came by and the road they left on. She never forgets a returning face, and she will tell you what you owe, what you promised and what you broke the last time you passed through. Locals say the ledger is the truest history in Lakehouse Village.
 
 ## Regulars and Rumours
 

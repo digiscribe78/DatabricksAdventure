@@ -12,11 +12,11 @@ def load():
     return yaml.safe_load(MANIFEST.read_text())
 
 
-def test_manifest_locations_match_world():
+def test_manifest_locations_and_gates_match_world():
     m = load()
-    assert {loc["id"]: tuple(loc["exits"]) for loc in m["locations"]} == {
-        loc.id: loc.exits for loc in LOCATIONS.values()
-    }
+    manifest = {loc["id"]: {e["to"]: e.get("requires") for e in loc["exits"]} for loc in m["locations"]}
+    world = {loc.id: {e: loc.gates.get(e) for e in loc.exits} for loc in LOCATIONS.values()}
+    assert manifest == world
 
 
 def test_every_document_file_exists_and_is_typed():
