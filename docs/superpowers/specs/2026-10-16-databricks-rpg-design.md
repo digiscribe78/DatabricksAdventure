@@ -102,9 +102,10 @@ Each node emits a `node_start`/`node_end` event through `context.emit` for the c
 
 | Tool | Behaviour | Implementation |
 |---|---|---|
-| `roll_check(stat, dc, modifier)` | d20 + modifier vs DC → `{roll, total, dc, success, margin}` | Local tool backed by rpg.rules (M1–M2). Promoted to a UC Python function in M3, when the function can read the character's modifier from Lakebase itself, so the model never supplies it. |
+| `roll_check(stat, dc, modifier)` | d20 + modifier vs DC → `{roll, total, dc, success, margin}` | Local tool backed by rpg.rules (M1–M2). Decision (2026-10-16, option b): a later milestone adds a UC Python dice function that the agent calls with the modifier it read from the save, keeping "UC functions as governed tools" without letting the model supply the modifier. |
 | `resolve_attack(attack_mod, defence, damage_die, damage_bonus)` | One combat exchange → `{roll, total, hit, damage}` | UC Python function |
 | `search_lore(query)` | Top-4 chunks filtered to the current location, its exits and the global docs (location read from state, never from the model) → `{query, passages: [{text, source, page, doc_type, location_id}]}` | Agent-side Python using the AI Search client (see §11 Q1) |
+| `enemy_attack(attacker, attack_bonus, damage_die, damage_bonus)` | Creature attacks the player against the player's defence; damage is staged automatically | Agent-side local tool |
 | `update_character(hp_delta, xp_delta, items_add, items_remove)` | Stages changes for `commit_state` | Agent-side, staged in graph state |
 | `set_quest_flag(flag, value)` | Stages a flag change | Agent-side, staged |
 | `set_npc_disposition(npc_id, delta)` | Stages a disposition change (clamped −3…+3) | Agent-side, staged |
@@ -137,7 +138,7 @@ Staged changes apply only in `commit_state`, so a failed turn changes nothing.
 
 - **Stats:** Might, Wits, Charm. Each archetype has modifiers of +3 (primary), +1 (secondary) and +0.
 - **Checks:** d20 + stat modifier ≥ DC. DCs are Easy 8, Normal 12 and Hard 16.
-- **Combat:** attacker rolls d20 + attack modifier (Might for weapons, Wits for spells) against defence (10 + the defender's best defensive modifier). A hit deals the damage die + bonus. Enemies are defined in the bestiary with HP, attack modifier, defence and damage.
+- **Combat:** attacker rolls d20 + attack modifier (Might for weapons, Wits for spells) against defence (10 + the defender's best defensive modifier). A hit deals the damage die + bonus. Enemies are defined in the bestiary with HP, attack modifier, defence and damage. Player defence is 10 + max(Might, Wits). Enemy HP is tracked in narration only in v1.
 - **HP:** at 0 HP the character is *downed*. They wake at the last safe location (the village inn) with half HP, lose half their gold, and get a quest flag noting the defeat. A defeat is a setback, not a game over. The campaign's final confrontation is the one exception: losing that ends the adventure in `"defeat"`.
 - **Archetypes (v1):**
 
@@ -198,7 +199,7 @@ Authoring: Cog drafts the lorebooks and NPC cards, and Mike edits them. Images a
 characters(id, player_id, name, archetype, might, wits, charm, hp, max_hp, xp, gold, location_id, created_at)
 inventory(character_id, item_id, qty)
 quest_flags(character_id, flag, value)
-adventures(id, character_id, session_id, status, started_at, updated_at)
+adventures(id = session_id, character_id, status, started_at, updated_at)
 npc_cards(npc_id, name, persona, speech_style, secrets, home_location_id)
 npc_disposition(character_id, npc_id, disposition)   -- -3..+3
 ```
@@ -330,7 +331,7 @@ DatabricksAdventure/
 
 1. **Skeleton.** The DM graph with `roll_check`, one location and a hard-coded character, via `agentbricks dev`. Tracing on.
 2. **Lore RAG.** The content pipeline, `lore_chunks`, the AI Search index and `search_lore`.
-3. **State.** The Lakebase tables, staged tools plus `commit_state`, the session store and the memory store and pipeline.
+3. **State (M3a).** Lakebase game tables, staged tools plus commit_state, new_game, NPC cards and combat. **Sessions and memory (M3b).** Managed session and memory stores, the memory pipeline and the first Agent Runtime deploy.
 4. **Game app.** Layout A, the curtain panel and the streaming proxy.
 5. **Guardrails.** The Unity Gateway policies and in-world refusals.
 6. **Eval.** Scenarios, scorers, judges and `make eval`.
