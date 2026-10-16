@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playTurn, type TurnRequest } from './api';
 import { ScryingGlass } from './ScryingGlass';
+import { sceneImage } from './scene';
 import { applyEvent, failTurn, newView, startTurn, type GameView } from './state';
 
 export function GameScreen({ sessionId, newGame, onQuit }: {
@@ -41,7 +42,10 @@ export function GameScreen({ sessionId, newGame, onQuit }: {
       <main className="story">
         <div className="frame">
           <div className="bview" data-location={view.game?.location_id ?? 'unknown'}>
-            <img src={`/images/${view.game?.location_id}.webp`} alt="" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
+            {sceneImage(view.game?.location_id) && (
+              <img key={view.game?.location_id} src={sceneImage(view.game?.location_id) ?? ''} alt=""
+                   onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
+            )}
             <span className="scene-name">{view.game?.location_name ?? 'The Kingdom of Sparkia'}</span>
           </div>
         </div>
