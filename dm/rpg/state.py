@@ -1,0 +1,122 @@
+"""Game state and the changes the DM may stage. apply_changes is pure: same input, same output."""
+
+from typing import Annotated, Literal, Union
+
+from pydantic import BaseModel, Field, TypeAdapter
+
+from rpg.world import LOCATIONS, START_LOCATION_ID, Character
+
+FLAG_PATTERN = r"^[a-z][a-z0-9_]{0,47}$"
+
+
+class NpcCard(BaseModel):
+    npc_id: str
+    name: str
+    persona: str
+    speech_style: str
+    secrets: str
+    home_location_id: str
+
+
+class NpcPresence(NpcCard):
+    disposition: int = 0
+
+
+class GameState(BaseModel):
+    character: Character
+    location_id: str
+    flags: dict[str, str] = Field(default_factory=dict)
+    npcs: list[NpcPresence] = Field(default_factory=list)
+
+
+class CharacterChange(BaseModel):
+    kind: Literal["character"] = "character"
+    hp_delta: int = 0
+    xp_delta: int = 0
+    gold_delta: int = 0
+    items_add: list[str] = Field(default_factory=list)
+    items_remove: list[str] = Field(default_factory=list)
+
+
+class FlagChange(BaseModel):
+    kind: Literal["flag"] = "flag"
+    flag: str = Field(pattern=FLAG_PATTERN)
+    value: str = Field(max_length=80)
+
+
+class DispositionChange(BaseModel):
+    kind: Literal["disposition"] = "disposition"
+    npc_id: str
+    delta: int
+
+
+class MoveChange(BaseModel):
+    kind: Literal["move"] = "move"
+    location_id: str
+
+
+Change = Annotated[Union[CharacterChange, FlagChange, DispositionChange, MoveChange], Field(discriminator="kind")]
+_CHANGES = TypeAdapter(list[Change])
+
+
+def _apply_character(state: GameState, ch: CharacterChange, notes: list[str]) -> None:
+    c = state.character
+    if ch.hp_delta:
+        new_hp = max(0, min(c.max_hp, c.hp + ch.hp_delta))
+        notes.append(f"HP {c.hp} → {new_hp}")
+        c.hp = new_hp
+    if ch.xp_delta:
+        c.xp = max(0, c.xp + ch.xp_delta)
+        notes.append(f"XP {ch.xp_delta:+d}")
+    if ch.gold_delta:
+        if c.gold + ch.gold_delta < 0:
+            notes.append(f"wanted {-ch.gold_delta} gold but only had {c.gold}")
+        new_gold = max(0, c.gold + ch.gold_delta)
+        notes.append(f"Gold {c.gold} → {new_gold}")
+        c.gold = new_gold
+    for item in ch.items_add:
+        c.inventory.append(item)
+        notes.append(f"+{item}")
+    for item in ch.items_remove:
+        if item in c.inventory:
+            c.inventory.remove(item)
+            notes.append(f"-{item}")
+        else:
+            notes.append(f"{item} not carried")
+
+
+def _downed(state: GameState, notes: list[str]) -> None:
+    c = state.character
+    c.hp = c.max_hp // 2
+    c.gold = c.gold // 2
+    state.location_id = START_LOCATION_ID
+    state.flags["times_downed"] = str(int(state.flags.get("times_downed", "0")) + 1)
+    notes.append(f"downed: woke at {LOCATIONS[START_LOCATION_ID].name} with HP {c.hp} and {c.gold} gold")
+
+
+def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, list[str]]:
+    parsed = _CHANGES.validate_python(changes)
+    new = state.model_copy(deep=True)
+    notes: list[str] = []
+    for ch in parsed:
+        if isinstance(ch, CharacterChange):
+            _apply_character(new, ch, notes)
+            if new.character.hp == 0:
+                _downed(new, notes)
+        elif isinstance(ch, FlagChange):
+            new.flags[ch.flag] = ch.value
+            notes.append(f"flag {ch.flag} = {ch.value}")
+        elif isinstance(ch, DispositionChange):
+            for npc in new.npcs:
+                if npc.npc_id == ch.npc_id:
+                    after = max(-3, min(3, npc.disposition + ch.delta))
+                    notes.append(f"{npc.name}: {npc.disposition} → {after}")
+                    npc.disposition = after
+        elif isinstance(ch, MoveChange):
+            here = LOCATIONS[new.location_id]
+            if ch.location_id in here.exits and ch.location_id in LOCATIONS:
+                new.location_id = ch.location_id
+                notes.append(f"moved to {LOCATIONS[ch.location_id].name}")
+            else:
+                notes.append(f"cannot reach {ch.location_id} from {here.name}")
+    return new, notes

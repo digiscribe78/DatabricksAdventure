@@ -45,6 +45,10 @@ class Character(BaseModel):
     def modifier(self, stat: Stat) -> int:
         return getattr(self, stat.value)
 
+    @property
+    def defence(self) -> int:
+        return 10 + max(self.might, self.wits)
+
 
 def new_character(name: str, archetype: str) -> Character:
     name = name.strip()
