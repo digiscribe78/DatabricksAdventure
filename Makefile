@@ -3,11 +3,12 @@
 PROFILE ?=
 CATALOG ?=
 SCHEMA ?= databricks_adventure
+LAKEBASE_PROJECT ?= databricks-adventure
 VOLUME = dbfs:/Volumes/$(CATALOG)/$(SCHEMA)/lore
 INDEX = $(CATALOG).$(SCHEMA).lore_index
 BUNDLE = databricks bundle --profile $(PROFILE) --var catalog=$(CATALOG) --var schema=$(SCHEMA)
 
-.PHONY: content deploy ingest test destroy check-vars
+.PHONY: content deploy ingest db test destroy check-vars
 
 check-vars:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
@@ -18,6 +19,7 @@ content:
 
 deploy: check-vars content
 	$(BUNDLE) deploy
+	$(MAKE) db PROFILE=$(PROFILE)
 	databricks fs cp --profile $(PROFILE) --recursive --overwrite build/lore $(VOLUME)/pdfs
 	databricks fs cp --profile $(PROFILE) --overwrite content/manifest.yaml $(VOLUME)/manifest.yaml
 	$(MAKE) ingest PROFILE=$(PROFILE) CATALOG=$(CATALOG) SCHEMA=$(SCHEMA)
@@ -25,6 +27,11 @@ deploy: check-vars content
 
 ingest: check-vars
 	$(BUNDLE) run ingest_lore
+
+db:
+	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
+	eval "$$(scripts/lakebase_env.sh $(PROFILE) $(LAKEBASE_PROJECT))" && cd dm && \
+		DATABRICKS_CONFIG_PROFILE=$(PROFILE) uv run python -m agent.pgstore migrate ../content/npcs
 
 test:
 	cd pipelines && uv run pytest -q

@@ -1,0 +1,5 @@
+resources:
+  postgres_projects:
+    game_db:
+      project_id: databricks-adventure
+      display_name: Databricks Adventure

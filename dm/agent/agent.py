@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
@@ -7,6 +8,7 @@ from databricks_langchain import ChatDatabricks
 
 from agent.dm_graph import build_dm_graph
 from agent.mcps import build_mcp_servers
+from rpg.store import GameStore, InMemoryStore, load_npc_cards
 
 # Importing the tools package auto-registers every tool module.
 from agent.tools import all_tools
@@ -27,6 +29,22 @@ from databricks_agentkit.runtime.auth import AuthError
 
 # A Unity Catalog AI Gateway model (`system.ai.*`). Override with the DM_MODEL env var.
 MODEL = os.getenv("DM_MODEL", "system.ai.claude-sonnet-4-5")
+
+NPC_DIR = Path(__file__).resolve().parents[2] / "content" / "npcs"
+_store: GameStore | None = None
+
+
+def game_store() -> GameStore:
+    """Lakebase when PGHOST is configured, otherwise an in-memory store (dev without a database)."""
+    global _store
+    if _store is None:
+        if os.getenv("PGHOST"):
+            from agent.pgstore import PostgresStore
+
+            _store = PostgresStore.from_env()
+        else:
+            _store = InMemoryStore(load_npc_cards(NPC_DIR) if NPC_DIR.is_dir() else [])
+    return _store
 
 class _RoutedChatDatabricks(ChatDatabricks):
     """Forward account-host workspace routing to the underlying OpenAI clients."""
@@ -88,7 +106,7 @@ async def create_agent_graph(
     llm = _RoutedChatDatabricks(
         endpoint=model or MODEL, workspace_client=workspace_client(), use_ai_gateway=True
     )
-    return build_dm_graph(llm, tools, checkpointer=checkpointer())
+    return build_dm_graph(llm, tools, checkpointer=checkpointer(), store=game_store())
 
 
 async def recovery_input(

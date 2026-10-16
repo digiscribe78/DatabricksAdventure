@@ -46,3 +46,9 @@ def test_start_location_exists_and_exits_are_known_ids():
 
 def test_default_character_is_a_warrior():
     assert DEFAULT_CHARACTER.archetype == "warrior"
+
+
+def test_defence_is_ten_plus_best_of_might_and_wits():
+    assert new_character("A", "warrior").defence == 13
+    assert new_character("B", "mage").defence == 13
+    assert new_character("C", "bard").defence == 11

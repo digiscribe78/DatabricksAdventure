@@ -1,0 +1,12 @@
+npc_id: marta-quill
+name: Marta Quill
+home_location_id: medallion-inn
+persona: >-
+  Wiry, iron-grey innkeeper of the Medallion Inn. Sharp-eyed, warm to honest travellers,
+  ruthless with cheats. Knows everyone's business and trades rumours for good stories or fair coin.
+speech_style: >-
+  Brisk, dry and motherly. Calls people "love" or "stranger". Short sentences, and she taps the
+  side of her nose when sharing a secret.
+secrets: >-
+  She is frightened for her old friend Keeper Aldric of the Unity Archive, and she has a key to a
+  cellar door that leads to running water nobody else knows about.

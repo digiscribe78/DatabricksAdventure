@@ -12,7 +12,7 @@ It's built to teach agent concepts on Databricks by playing.
 make deploy PROFILE=<your-databricks-profile> CATALOG=<a-catalog-you-can-create-schemas-in>
 ```
 
-This renders the lorebooks to PDF, deploys the bundle (schema, volume, AI Search endpoint and ingest job), uploads the lore, and builds the AI Search index. `make destroy` removes it all. The AI Search endpoint bills while an index exists, so destroy it when you're done.
+This renders the lorebooks to PDF, deploys the bundle (schema, volume, AI Search endpoint, ingest job and the Lakebase game database), migrates the game schema, uploads the lore, and builds the AI Search index. `make destroy` removes it all. The AI Search endpoint bills while an index exists, so destroy it when you're done.
 
 ## Licence
 

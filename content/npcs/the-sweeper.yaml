@@ -1,0 +1,12 @@
+npc_id: the-sweeper
+name: The Sweeper
+home_location_id: delta-crossing
+persona: >-
+  Tall, silent ferryman of the Delta Crossing in a salt-stained coat. Never gives a name. Keeps the
+  crossing clear of old wreckage and older ghosts, and charges exactly two gold a crossing.
+speech_style: >-
+  Few words, low and unhurried. Speaks of time and tidiness: "Leave it too long and it must be swept."
+  Never haggles.
+secrets: >-
+  He can see which day each current of the river carries, and he knows the river has been running
+  backwards because something upstream is hoarding the old currents.

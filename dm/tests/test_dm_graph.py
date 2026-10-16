@@ -1,4 +1,5 @@
 import random
+from pathlib import Path
 
 import agent.tools.dice as dice
 import pytest
@@ -7,6 +8,7 @@ from agent.tools.dice import roll_check
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from rpg.turn import ComposeOutput
+from rpg.store import InMemoryStore, load_npc_cards
 from rpg.world import START_LOCATION_ID
 
 from tests.fakes import ScriptedModel
@@ -38,8 +40,18 @@ def run(graph, content, thread="t1"):
     return graph.invoke({"messages": msgs}, {"configurable": {"thread_id": thread}})
 
 
-def make(model):
-    return build_dm_graph(model, [roll_check], checkpointer=InMemorySaver())
+NPCS = Path(__file__).resolve().parents[2] / "content" / "npcs"
+
+
+def new_store(sid="t1"):
+    s = InMemoryStore(load_npc_cards(NPCS))
+    s.create_adventure(sid, "player-1", "Brannoc", "warrior")
+    return s
+
+
+def make(model, tools=None, store=None):
+    return build_dm_graph(model, tools or [roll_check], checkpointer=InMemorySaver(),
+                          store=store if store is not None else new_store())
 
 
 def test_plain_turn_returns_valid_turn_output():
@@ -189,7 +201,7 @@ def test_lore_tool_result_becomes_lore_event(monkeypatch):
         replies=[AIMessage(content="", tool_calls=[lore_call]), AIMessage(content="draft")],
         structured=[PROSE],
     )
-    graph = build_dm_graph(model, [roll_check, search_lore], checkpointer=InMemorySaver())
+    graph = make(model, [roll_check, search_lore])
     events = run(graph, "Tell me about the river.")["turn"]["events"]
     assert [e["type"] for e in events] == ["lore"]
     assert events[0]["summary"] == "Lore: 1 passages for 'the river' (delta-crossing)"
@@ -209,7 +221,168 @@ def test_failed_lore_lookup_still_completes_turn(monkeypatch):
         replies=[AIMessage(content="", tool_calls=[lore_call]), AIMessage(content="draft")],
         structured=[PROSE],
     )
-    graph = build_dm_graph(model, [roll_check, search_lore], checkpointer=InMemorySaver())
+    graph = make(model, [roll_check, search_lore])
     turn = run(graph, "Tell me a legend.")["turn"]
     assert turn["narration"] == PROSE.narration
     assert turn["events"] == []
+
+
+from agent.dm_graph import COMMIT_FAILED_NARRATION
+from agent.tools.dice import enemy_attack
+from agent.tools.state_tools import move_to, update_character
+
+STATE_TOOLS = [roll_check, update_character, move_to, enemy_attack]
+
+
+def tc(name, idx=0, **args):
+    return {"name": name, "args": args, "id": f"{name}-{idx}", "type": "tool_call"}
+
+
+def test_staged_changes_commit_and_emit_state_event():
+    store = new_store()
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[
+            tc("update_character", hp_delta=-4, items_add=["lantern"]),
+            tc("move_to", location_id="delta-crossing"),
+        ]), AIMessage(content="draft")],
+        structured=[PROSE],
+    )
+    turn = run(make(model, STATE_TOOLS, store), "I grab a lantern and head for the river.")["turn"]
+    assert turn["location_id"] == "delta-crossing"
+    state_event = turn["events"][-1]
+    assert state_event["type"] == "state"
+    assert "HP 18 → 14" in state_event["summary"] and "moved to The Delta Crossing" in state_event["summary"]
+    saved = store.load("t1")
+    assert saved.character.hp == 14 and "lantern" in saved.character.inventory
+    assert [n.npc_id for n in saved.npcs] == ["the-sweeper"]
+
+
+def test_no_staged_changes_means_no_state_event_and_no_commit():
+    class CountingStore(InMemoryStore):
+        commits = 0
+
+        def commit(self, sid, state):
+            CountingStore.commits += 1
+            super().commit(sid, state)
+
+    store = CountingStore(load_npc_cards(NPCS))
+    store.create_adventure("t1", "p", "Brannoc", "warrior")
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    turn = run(make(model, STATE_TOOLS, store), "I look around.")["turn"]
+    assert turn["events"] == [] and CountingStore.commits == 0
+
+
+def test_enemy_attack_damage_is_committed(monkeypatch):
+    class SeqRng(random.Random):
+        def __init__(self, *v):
+            super().__init__(0)
+            self.v = list(v)
+
+        def randint(self, a, b):
+            return self.v.pop(0)
+
+    monkeypatch.setattr(dice, "RNG", SeqRng(12, 3))
+    store = new_store()
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("enemy_attack", attacker="River wraith", attack_bonus=3,
+                                                     damage_die=6, damage_bonus=1)]), AIMessage(content="d")],
+        structured=[PROSE],
+    )
+    turn = run(make(model, STATE_TOOLS, store), "I wade in.")["turn"]
+    assert [e["type"] for e in turn["events"]] == ["attack", "state"]
+    assert store.load("t1").character.hp == 14
+
+
+def test_commit_failure_keeps_state_and_cleans_history():
+    class BrokenStore(InMemoryStore):
+        def commit(self, sid, state):
+            raise ConnectionError("lakebase unreachable")
+
+    store = BrokenStore(load_npc_cards(NPCS))
+    store.create_adventure("t1", "p", "Brannoc", "warrior")
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("update_character", gold_delta=-2)]), AIMessage(content="d"),
+                 AIMessage(content="ok")],
+        structured=[PROSE],
+    )
+    graph = make(model, STATE_TOOLS, store)
+    turn = run(graph, "I pay the ferryman.")["turn"]
+    assert turn["narration"] == COMMIT_FAILED_NARRATION
+    assert store.load("t1").character.gold == 12
+    run(graph, "I try again.")
+    retry_input = model.reason_calls[-1]
+    assert not any(isinstance(m, ToolMessage) for m in retry_input)
+
+
+def test_turn_without_adventure_raises():
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    graph = make(model, store=InMemoryStore())
+    with pytest.raises(LookupError):
+        run(graph, "Hello")
+
+
+def test_system_prompt_includes_npc_card_and_exits():
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    run(make(model), "Hello")
+    system = model.reason_calls[0][0].content
+    assert "Marta Quill" in system and "disposition +0" in system
+    assert "The Delta Crossing (delta-crossing)" in system
+    assert "Defence 13" in system
+
+
+def test_reload_failure_after_successful_commit_is_not_reported_as_failure():
+    class FlakyReload(InMemoryStore):
+        loads = 0
+
+        def load(self, sid):
+            FlakyReload.loads += 1
+            if FlakyReload.loads == 2:  # 1st = load_state, 2nd = reload after commit
+                raise ConnectionError("blip")
+            return super().load(sid)
+
+    store = FlakyReload(load_npc_cards(NPCS))
+    store.create_adventure("t1", "p", "Brannoc", "warrior")
+    FlakyReload.loads = 0
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("update_character", gold_delta=-2, items_add=["lantern"])]),
+                 AIMessage(content="d")],
+        structured=[PROSE],
+    )
+    turn = run(make(model, STATE_TOOLS, store), "I buy a lantern.")["turn"]
+    assert turn["narration"] == PROSE.narration
+    assert turn["events"][-1]["type"] == "state"
+    assert store.load("t1").character.gold == 10
+
+
+def test_reason_failure_after_staged_change_commits_nothing():
+    store = new_store()
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("update_character", gold_delta=-2)]), RuntimeError("429"),
+                 AIMessage(content="ok")],
+        structured=[PROSE],
+    )
+    graph = make(model, STATE_TOOLS, store)
+    turn = run(graph, "I pay.")["turn"]
+    assert turn["narration"] == FALLBACK_NARRATION and turn["events"] == []
+    assert store.load("t1").character.gold == 12
+    run(graph, "Again.")
+    assert not any(isinstance(m, ToolMessage) for m in model.reason_calls[-1])
+
+
+def test_compose_is_told_what_state_was_applied():
+    store = new_store()
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("update_character", hp_delta=-30)]), AIMessage(content="d")],
+        structured=[PROSE],
+    )
+    run(make(model, STATE_TOOLS, store), "I leap off the bridge.")
+    compose_system = model.structured_calls[0][0].content
+    assert "downed" in compose_system and "HP 18 → 0" in compose_system
+
+
+def test_turn_for_another_players_adventure_is_refused():
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    graph = make(model)
+    with pytest.raises(PermissionError):
+        graph.invoke({"messages": [{"role": "user", "content": "hi"}]},
+                     {"configurable": {"thread_id": "t1", "actor_id": "someone-else"}})
