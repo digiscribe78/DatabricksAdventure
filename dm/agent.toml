@@ -1,0 +1,14 @@
+schema_version = 1
+
+[agent]
+framework = "langgraph"
+server = "agentbricks"
+
+[memory_store]
+name = "dm-vhiyme-memory"
+
+[session_store]
+name = "dm-vhiyme-sessions"
+
+[tracing]
+experiment_name = "/Shared/agentbricks_traces/dm-vhiyme"

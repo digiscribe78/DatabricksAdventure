@@ -102,7 +102,7 @@ Each node emits a `node_start`/`node_end` event through `context.emit` for the c
 
 | Tool | Behaviour | Implementation |
 |---|---|---|
-| `roll_check(stat, dc, modifier)` | d20 + modifier vs DC → `{roll, total, dc, success, margin}` | UC Python function, `[[tools]] source = { kind = "uc_function" }`, `auth = "app"` |
+| `roll_check(stat, dc, modifier)` | d20 + modifier vs DC → `{roll, total, dc, success, margin}` | Local tool backed by rpg.rules in M1; promoted to a UC Python function (uc_function binding, auth = "app") in M2 |
 | `resolve_attack(attack_mod, defence, damage_die, damage_bonus)` | One combat exchange → `{roll, total, hit, damage}` | UC Python function |
 | `search_lore(query, location_id)` | Top-k chunks filtered to `location_id` ∪ global docs → `[{text, source, page, doc_type}]` | Agent-side Python using the AI Search client (see §11 Q1) |
 | `update_character(hp_delta, xp_delta, items_add, items_remove)` | Stages changes for `commit_state` | Agent-side, staged in graph state |
@@ -116,13 +116,13 @@ Staged changes apply only in `commit_state`, so a failed turn changes nothing.
 
 ### 4.4 Model
 
-The default is the most capable Claude model available to the workspace through Unity Gateway. It's set by one config value (`DM_MODEL` in agent config) so the provider and model can change without code changes.
+`DM_MODEL` env var, a `system.ai.*` AI Gateway model name (default `system.ai.claude-sonnet-4-5`), called via `ChatDatabricks(..., use_ai_gateway=True)`. The model and provider can be changed without code changes.
 
 ### 4.5 Structured turn output
 
 ```json
 {
-  "narration": "string (markdown, 40–200 words)",
+  "narration": "string (markdown; prompt target 40–200 words, validated non-blank and ≤ 400 words)",
   "choices": ["string", "string", "string"],
   "allow_free_text": true,
   "location_id": "delta-crossing",
@@ -278,7 +278,7 @@ DatabricksAdventure/
 ├─ LICENSE              Apache-2.0
 ├─ Makefile             deploy | dev | eval | content | stop | start | destroy
 ├─ databricks.yml       bundle: catalog/schema/volumes, Lakebase db, ingest + eval jobs, game app
-├─ agent/               Agent Bricks project: agent.toml, graph, tools, prompts
+├─ dm/                  Agent Bricks project: agent.toml, agent/ (graph, tools, prompts), rpg/ (pure game logic)
 ├─ app/                 frontend/ (React+Vite), backend/ (FastAPI)
 ├─ uc_functions/        roll_check, resolve_attack (+ tests)
 ├─ pipelines/           render PDFs, parse, chunk, index
