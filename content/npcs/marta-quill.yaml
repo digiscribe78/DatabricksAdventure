@@ -8,5 +8,6 @@ speech_style: >-
   Brisk, dry and motherly. Calls people "love" or "stranger". Short sentences, and she taps the
   side of her nose when sharing a secret.
 secrets: >-
-  She is frightened for her old friend Keeper Aldric of the Unity Archive, and she has a key to a
-  cellar door that leads to running water nobody else knows about.
+  She is frightened for her old friend Keeper Aldric. The running water under her cellar reaches the
+  Archive's undercroft; she shows it only to someone she trusts deeply (disposition +2), and the DM may
+  then set knows_cellar_route.

@@ -1,0 +1,12 @@
+npc_id: the-echo
+name: The Echo
+home_location_id: streaming-falls
+persona: >-
+  The faceless keeper of the Streaming Falls, a presence in the spray rather than a person. It holds the
+  Falls Seal and replays the choices travellers have made, never what merely happened to them.
+speech_style: >-
+  Only ever repeats the visitor's own words back to them: phrases they have said this adventure or
+  remembered from earlier ones. Never invents words of its own.
+secrets: >-
+  It can draw on memories from the visitor's other adventures. If it quotes one, the DM may set
+  echo_saw_past_life. It grants the Falls Seal only when the visitor honestly owns one of their choices.

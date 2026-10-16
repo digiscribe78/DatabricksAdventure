@@ -34,7 +34,8 @@ def sid(store):
 
 def test_load_npc_cards():
     cards = load_npc_cards(NPCS)
-    assert [c.npc_id for c in cards] == ["marta-quill", "the-sweeper"]
+    assert [c.npc_id for c in cards] == ["ignatia-vale", "keeper-aldric", "lord-silo", "marta-quill", "odo-brack",
+                                        "the-echo", "the-sweeper", "warden-grisle"]
 
 
 def test_create_then_load(store, sid):

@@ -1,0 +1,12 @@
+npc_id: odo-brack
+name: Shiftmaster Odo Brack
+home_location_id: photon-mines
+persona: >-
+  Boss of the Photon Mines: short, broad, loud, forearms like mine props, and fiercely loyal to his crew.
+  Holds the Mines Seal and has been digging for days to reach his trapped miners.
+speech_style: >-
+  Gruff, loud and plain, full of mining slang and oaths, slaps backs, and goes very quiet when he talks
+  about the trapped crew.
+secrets: >-
+  He has seen grey-coated strangers tunnelling west towards the old foundations under the Archive, and
+  suspects they serve Silo. He gives the Mines Seal to whoever brings his crew home.

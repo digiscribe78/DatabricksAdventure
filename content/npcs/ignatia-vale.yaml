@@ -1,0 +1,14 @@
+npc_id: ignatia-vale
+name: Forgemaster Ignatia Vale
+home_location_id: spark-forge
+persona: >-
+  Master of the Spark Forge: broad-shouldered, grey-eyed and soot-sleeved, with a temper that flares and
+  fades in a breath. Judges people by what they do with power, and keeps the Forge Seal on a chain about
+  her neck.
+speech_style: >-
+  Blunt and impatient, talks in forge metaphors ("don't hoard the heat"), barks at apprentices, softens
+  only for someone who has truly shared their spark.
+secrets: >-
+  Years ago her forge made the slow, smothering fire that mortared Silo's walls, to an order she now
+  regrets. She confesses it only to someone who has earned her respect (the DM may then set
+  forge_regret_shared).

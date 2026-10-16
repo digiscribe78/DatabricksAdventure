@@ -65,3 +65,17 @@ def test_no_placeholders_in_content():
     for p in (LORE.parent).rglob("*"):
         if p.is_file() and p.suffix in {".md", ".yaml"}:
             assert not re.search(r"\b(TODO|TBD|FIXME)\b", p.read_text()), p.name
+
+
+def test_npc_cards_cover_the_cast():
+    from rpg.store import load_npc_cards
+
+    cards = {c.npc_id: c for c in load_npc_cards(LORE.parent / "npcs")}
+    assert set(cards) == {"marta-quill", "the-sweeper", "keeper-aldric", "ignatia-vale", "the-echo",
+                          "odo-brack", "warden-grisle", "lord-silo"}
+    for c in cards.values():
+        assert c.home_location_id in LOCATIONS
+        assert len(c.persona) > 80 and len(c.speech_style) > 30 and len(c.secrets) > 40
+    assert "undercroft" in cards["marta-quill"].secrets
+    assert "master" in cards["keeper-aldric"].secrets
+    assert "letters" in cards["lord-silo"].secrets
