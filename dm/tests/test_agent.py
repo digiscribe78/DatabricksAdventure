@@ -137,7 +137,8 @@ async def test_recovery_replays_input_without_current_checkpoint(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_adapter_calls_same_run_agent_for_invoke_and_recovery(monkeypatch):
+async def test_adapter_calls_same_run_agent_for_invoke_and_recovery(monkeypatch, mem_store):
+    mem_store.create_adventure("runtime-session", "p", "Brannoc", "warrior")
     import agent.agent as agent_module
     import runtime.adapter as adapter
     from langgraph.checkpoint.memory import InMemorySaver
@@ -236,7 +237,8 @@ async def test_serialize_events_tolerates_none_node_update():
 
 
 @pytest.mark.asyncio
-async def test_invoke_returns_turn(monkeypatch):
+async def test_invoke_returns_turn(monkeypatch, mem_store):
+    mem_store.create_adventure("s-1", "p", "Brannoc", "warrior")
     import runtime.adapter as adapter
 
     turn = {"narration": "n", "choices": ["a", "b"], "allow_free_text": True,
@@ -271,3 +273,88 @@ def test_agent_input_keeps_only_role_and_content_of_user_messages():
 
     out = _agent_input({"messages": [{"role": "user", "content": "hi", "id": "overwrite-me"}]})
     assert out == {"messages": [{"role": "user", "content": "hi"}]}
+
+
+@pytest.fixture
+def mem_store(monkeypatch):
+    from pathlib import Path
+
+    import agent.agent as agent_module
+    from rpg.store import InMemoryStore, load_npc_cards
+
+    store = InMemoryStore(load_npc_cards(Path(__file__).resolve().parents[2] / "content" / "npcs"))
+    monkeypatch.setattr(agent_module, "game_store", lambda: store)
+    return store
+
+
+@pytest.fixture
+def capture_run(monkeypatch):
+    import runtime.adapter as adapter
+
+    calls = []
+
+    async def fake_run_agent(agent_input, **kwargs):
+        calls.append(kwargs)
+        if False:
+            yield None
+
+    monkeypatch.setattr(adapter, "run_agent", fake_run_agent)
+    return calls
+
+
+def ctx(session="s-new"):
+    return SimpleNamespace(invocation_id="inv-1", session_id=session, emit=AsyncMock())
+
+
+@pytest.mark.asyncio
+async def test_new_game_creates_adventure(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    await invoke({"messages": [], "new_game": {"name": "Elowen", "archetype": "mage"}, "actor": "p1"}, ctx())
+    game = mem_store.load("s-new")
+    assert game.character.name == "Elowen" and game.character.archetype == "mage"
+    assert mem_store.list_adventures("p1")[0]["session_id"] == "s-new"
+    assert capture_run
+
+
+@pytest.mark.asyncio
+async def test_new_game_replay_is_idempotent(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    payload = {"messages": [], "new_game": {"name": "Elowen", "archetype": "mage"}}
+    await invoke(payload, ctx())
+    await invoke(payload, ctx())
+    assert len(capture_run) == 2
+    assert mem_store.load("s-new").character.name == "Elowen"
+
+
+@pytest.mark.asyncio
+async def test_turn_without_adventure_is_rejected(mem_store, capture_run):
+    from runtime.adapter import invoke
+
+    with pytest.raises(ValueError, match="new_game"):
+        await invoke({"messages": [{"role": "user", "content": "hi"}]}, ctx("s-none"))
+    assert capture_run == []
+
+
+@pytest.mark.parametrize("ng", [
+    {"name": "", "archetype": "mage"}, {"name": "x" * 41, "archetype": "mage"},
+    {"name": "Bob", "archetype": "paladin"}, "Bob", {"archetype": "bard"},
+])
+@pytest.mark.asyncio
+async def test_bad_new_game_rejected(mem_store, capture_run, ng):
+    from runtime.adapter import invoke
+
+    with pytest.raises(ValueError):
+        await invoke({"messages": [], "new_game": ng}, ctx())
+    assert mem_store.load("s-new") is None
+
+
+def test_game_store_falls_back_to_memory_without_pghost(monkeypatch):
+    import agent.agent as agent_module
+    from rpg.store import InMemoryStore
+
+    monkeypatch.delenv("PGHOST", raising=False)
+    monkeypatch.setattr(agent_module, "_store", None)
+    store = agent_module.game_store()
+    assert isinstance(store, InMemoryStore) and store is agent_module.game_store()

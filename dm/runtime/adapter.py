@@ -52,6 +52,32 @@ def _agent_input(payload: dict[str, Any]) -> Any:
     return {"messages": cleaned}
 
 
+def _new_game(payload: dict[str, Any]) -> tuple[str, str] | None:
+    ng = payload.get("new_game")
+    if ng is None:
+        return None
+    from rpg.world import ARCHETYPES
+
+    name = ng.get("name") if isinstance(ng, dict) else None
+    archetype = ng.get("archetype") if isinstance(ng, dict) else None
+    if not (isinstance(name, str) and 1 <= len(name.strip()) <= 40):
+        raise ValueError("new_game.name must be 1-40 characters")
+    if archetype not in ARCHETYPES:
+        raise ValueError(f"new_game.archetype must be one of {sorted(ARCHETYPES)}")
+    return name.strip(), archetype
+
+
+def _ensure_adventure(payload: dict[str, Any], session_id: str, actor: str) -> None:
+    """Create the adventure on new_game (idempotent for replays); otherwise require one to exist."""
+    store = agent_module.game_store()
+    new_game = _new_game(payload)
+    if store.load(session_id) is not None:
+        return
+    if new_game is None:
+        raise ValueError("no adventure for this session: send new_game first")
+    store.create_adventure(session_id, actor, *new_game)
+
+
 async def invoke(value: Any, context: InvocationContext) -> dict:
     payload = _payload(value)
     _check_user_input(payload, context)
@@ -100,6 +126,7 @@ async def _invoke_agent(
     auth = getattr(context, "request_auth", None)
     if auth and payload.get("actor"):
         actor = auth.namespace("actor", actor)
+    _ensure_adventure(payload, session_id, actor)
     user_auth = auth is not None
     run_kwargs = {"workspace_client_for": auth.client_for} if user_auth else {}
     model = payload.get("model")
