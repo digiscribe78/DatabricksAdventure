@@ -1,7 +1,7 @@
 # Databricks Adventure: Campaign Design (Story Bible)
 
 - **Date:** 2026-10-17
-- **Status:** Draft for review
+- **Status:** Approved; implemented in M7a (art and music in M7b)
 - **Parent spec:** `2026-10-16-databricks-rpg-design.md`. This document defines the v1 campaign, the input to Milestones 6 (eval) and 7 (content).
 
 ## 1. Intent
@@ -153,13 +153,15 @@ Every NPC has a YAML card (`content/npcs/*.yaml`): persona, speech style and sec
 | `silo_wounds` | `0`–`3` | Each successful attack on Silo |
 | `ending` | `might` / `wits` / `charm` | The finale is won |
 | `times_downed` | integer | Set by code (existing) |
+| `marta_trusts_you` | yes | Set by code when Marta's disposition first reaches +1 |
+| `defeated_by_silo` | yes | Set by code when the player is downed at silos-keep |
 
 The vault opens only when `seal_forge`, `seal_falls` and `seal_mines` are all `yes` and the player is at the Archive.
 
 **Endings** (the finale at silos-keep):
 - **Might.** Wound Silo three times (`silo_wounds` = 3) using `resolve_attack` against defence 14. With `crew_rescued`, Odo's miners hold the Sealing Wardens back, so the player faces Silo alone. Otherwise there are 2 wardens as well.
 - **Wits.** Present the Catalog as proof that the knowledge belongs to everyone: a Wits check at DC 16, or DC 12 with `forge_regret_shared`.
-- **Charm.** Only available with `aldric_forgives_silo`. It's a Charm check at DC 12 if Marta's disposition is +1 or more, or `echo_saw_past_life` is `yes`. Otherwise it's DC 16.
+- **Charm.** Only available with `aldric_forgives_silo`. It's a Charm check at DC 12 if `marta_trusts_you`, or `echo_saw_past_life` is `yes`. Otherwise it's DC 16.
 - **On a failed Wits or Charm check:** Silo's walls close in. The player may try again with the other approach, or fight.
 - **Defeat:** being downed during the finale ends the adventure in `defeat`.
 - **Victory:** code sets `game_over = "victory"` when `ending` is set, and `game_over = "defeat"` when the player is downed at silos-keep.
@@ -195,7 +197,7 @@ The vault opens only when `seal_forge`, `seal_falls` and `seal_mines` are all `y
 | ElevenLabs tracks | 8 locations plus title and combat |
 | Eval scenarios | ~25: gates, each ending, agency, dice integrity, Archive guardrails |
 
-**Code (small):**
+**Code (small), all done in M7a.** Story beats are also listed in "Story so far" until recorded, because long-term memory otherwise masked missing flags in live play:
 1. Exits support `requires`, and `move_to` refuses gated exits, naming what's missing.
 2. `set_quest_flag` validates against the canonical flag list.
 3. `game_over` is derived from `ending` / `times_downed` at silos-keep.
