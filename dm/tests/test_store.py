@@ -66,7 +66,7 @@ def test_commit_persists_all_kinds_of_change(store, sid):
     game = store.create_adventure(sid, "player-1", "Brannoc", "warrior")
     game, _ = apply_changes(game, [
         {"kind": "character", "hp_delta": -4, "gold_delta": -2, "xp_delta": 5, "items_add": ["lantern", "rope"]},
-        {"kind": "flag", "flag": "met_marta", "value": "yes"},
+        {"kind": "flag", "flag": "saw_the_diversion", "value": "yes"},
         {"kind": "disposition", "npc_id": "marta-quill", "delta": 1},
         {"kind": "move", "location_id": "delta-crossing"},
     ])
@@ -75,7 +75,7 @@ def test_commit_persists_all_kinds_of_change(store, sid):
     c = loaded.character
     assert (c.hp, c.gold, c.xp) == (14, 10, 5)
     assert sorted(c.inventory) == sorted(["longsword (d6+2)", "shield", "rope", "lantern", "rope"])
-    assert loaded.flags == {"met_marta": "yes"}
+    assert loaded.flags == {"saw_the_diversion": "yes", "marta_trusts_you": "yes"}
     assert loaded.location_id == "delta-crossing"
     assert [n.npc_id for n in loaded.npcs] == ["the-sweeper"]
     back, _ = apply_changes(loaded, [{"kind": "move", "location_id": "medallion-inn"}])

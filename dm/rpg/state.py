@@ -4,6 +4,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
 
+from rpg.campaign import FLAG_HINTS, validate_flag
 from rpg.world import LOCATIONS, START_LOCATION_ID, Character
 
 FLAG_PATTERN = r"^[a-z][a-z0-9_]{0,47}$"
@@ -90,6 +91,10 @@ def _apply_character(state: GameState, ch: CharacterChange, notes: list[str]) ->
 
 def _downed(state: GameState, notes: list[str]) -> None:
     c = state.character
+    if state.location_id == "silos-keep":
+        state.flags["defeated_by_silo"] = "yes"
+        notes.append("defeated by Lord Silo: the walls close over you")
+        return
     c.hp = c.max_hp // 2
     c.gold = c.gold // 2
     state.location_id = START_LOCATION_ID
@@ -115,6 +120,10 @@ def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, lis
                 _downed(new, notes)
                 downed = True
         elif isinstance(ch, FlagChange):
+            problem = validate_flag(ch.flag, ch.value)
+            if problem:
+                notes.append(f"ignored flag {ch.flag}: {problem}")
+                continue
             new.flags[ch.flag] = ch.value
             notes.append(f"flag {ch.flag} = {ch.value}")
         elif isinstance(ch, DispositionChange):
@@ -123,11 +132,16 @@ def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, lis
                     after = max(-3, min(3, npc.disposition + ch.delta))
                     notes.append(f"{npc.name}: {npc.disposition} → {after}")
                     npc.disposition = after
+                    if npc.npc_id == "marta-quill" and after >= 1:
+                        new.flags["marta_trusts_you"] = "yes"
         elif isinstance(ch, MoveChange):
             here = LOCATIONS[new.location_id]
-            if ch.location_id in here.exits and ch.location_id in LOCATIONS:
+            barrier = here.barrier(ch.location_id, new.flags)
+            if ch.location_id not in here.exits or ch.location_id not in LOCATIONS:
+                notes.append(f"cannot reach {ch.location_id} from {here.name}")
+            elif barrier:
+                notes.append(f"barred from {LOCATIONS[ch.location_id].name}: {FLAG_HINTS.get(barrier, 'the way is shut')}")
+            else:
                 new.location_id = ch.location_id
                 notes.append(f"moved to {LOCATIONS[ch.location_id].name}")
-            else:
-                notes.append(f"cannot reach {ch.location_id} from {here.name}")
     return new, notes

@@ -60,9 +60,9 @@ def test_move_after_being_downed_is_ignored():
 
 
 def test_xp_and_flag():
-    s, notes = apply_changes(state(), [{"kind": "character", "xp_delta": 5}, {"kind": "flag", "flag": "met_sweeper", "value": "yes"}])
-    assert s.character.xp == 5 and s.flags == {"met_sweeper": "yes"}
-    assert "XP +5" in notes and "flag met_sweeper = yes" in notes
+    s, notes = apply_changes(state(), [{"kind": "character", "xp_delta": 5}, {"kind": "flag", "flag": "saw_the_diversion", "value": "yes"}])
+    assert s.character.xp == 5 and s.flags == {"saw_the_diversion": "yes"}
+    assert "XP +5" in notes and "flag saw_the_diversion = yes" in notes
 
 
 def test_disposition_clamps():
@@ -73,7 +73,7 @@ def test_disposition_clamps():
 def test_move_to_exit_and_reject_non_exit():
     s, notes = apply_changes(state(), [{"kind": "move", "location_id": "delta-crossing"}])
     assert s.location_id == "delta-crossing" and "moved to The Delta Crossing" in notes
-    s2, notes2 = apply_changes(state(), [{"kind": "move", "location_id": "unity-archive"}])
+    s2, notes2 = apply_changes(state(), [{"kind": "move", "location_id": "silos-keep"}])
     assert s2.location_id == "medallion-inn" and any("cannot reach" in n for n in notes2)
 
 
@@ -91,3 +91,36 @@ def test_input_state_is_not_mutated():
 def test_malformed_changes_rejected(bad):
     with pytest.raises(ValidationError):
         apply_changes(state(), [bad])
+
+
+def test_gated_move_is_barred_with_reason():
+    s, notes = apply_changes(state(location_id="unity-archive", npcs=[]), [{"kind": "move", "location_id": "spark-forge"}])
+    assert s.location_id == "unity-archive"
+    assert any("barred" in n and "Aldric" in n for n in notes)
+    s2, _ = apply_changes(state(location_id="unity-archive", npcs=[], flags={"spoke_with_aldric": "yes"}),
+                          [{"kind": "move", "location_id": "spark-forge"}])
+    assert s2.location_id == "spark-forge"
+
+
+def test_non_canonical_and_code_owned_flags_are_ignored():
+    s, notes = apply_changes(state(), [{"kind": "flag", "flag": "met_marta", "value": "yes"},
+                                       {"kind": "flag", "flag": "defeated_by_silo", "value": "yes"},
+                                       {"kind": "flag", "flag": "seal_forge", "value": "yes"}])
+    assert s.flags == {"seal_forge": "yes"}
+    assert sum("ignored" in n for n in notes) == 2
+
+
+def test_old_sandbox_flags_survive_loading():
+    s, _ = apply_changes(state(flags={"met_marta": "yes"}), [{"kind": "character", "xp_delta": 1}])
+    assert s.flags["met_marta"] == "yes"
+
+
+def test_downed_at_silos_keep_is_defeat_not_waking_at_the_inn():
+    s, notes = apply_changes(state(location_id="silos-keep", npcs=[]), [{"kind": "character", "hp_delta": -40}])
+    assert s.location_id == "silos-keep" and s.flags["defeated_by_silo"] == "yes"
+    assert any("Lord Silo" in n for n in notes)
+
+
+def test_marta_trust_sets_code_flag():
+    s, _ = apply_changes(state(), [{"kind": "disposition", "npc_id": "marta-quill", "delta": 1}])
+    assert s.flags.get("marta_trusts_you") == "yes"

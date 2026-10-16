@@ -76,7 +76,7 @@ def test_disposition_requires_present_npc_and_small_delta():
 
 def test_move_to_only_exits():
     assert call(move_to, location_id="delta-crossing")[1] == [{"kind": "move", "location_id": "delta-crossing"}]
-    content, staged = call(move_to, location_id="unity-archive")
+    content, staged = call(move_to, location_id="silos-keep")
     assert "delta-crossing" in content["error"] and staged == []
 
 
