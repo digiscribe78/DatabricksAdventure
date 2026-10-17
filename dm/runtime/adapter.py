@@ -1,5 +1,6 @@
 """Translate between Agent Bricks invocations and the framework-native agent entrypoint."""
 
+import asyncio
 import os
 import re
 
@@ -7,6 +8,8 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any
 
 from agent import agent as agent_module
+from agent.guardrails import REFUSED_PLACEHOLDER
+from agent.transcripts import distil_adventure, record_turn
 from agent.agent import recovery_input, run_agent
 from langchain.messages import AIMessageChunk
 from langgraph.types import Command
@@ -160,6 +163,18 @@ def _check_user_input(payload: dict[str, Any], context: InvocationContext) -> No
         )
 
 
+def turn_transcript(agent_input: Any, turn: dict) -> tuple[str | None, str]:
+    """What the transcript records for a turn: the player's words (or the placeholder) and the reply."""
+    messages = agent_input.get("messages") if isinstance(agent_input, dict) else None
+    users = [m.get("content") for m in messages or [] if isinstance(m, dict) and m.get("role") == "user"]
+    player = users[-1] if users and isinstance(users[-1], str) and users[-1].strip() else None
+    if player is not None and any(e.get("type") == "guardrail" for e in turn.get("events") or []):
+        player = REFUSED_PLACEHOLDER  # blocked words never reach the transcript or memory
+    choices = "\n".join(f"- {c}" for c in turn.get("choices") or [])
+    reply = (turn.get("narration") or "") + (f"\n\n{choices}" if choices else "")
+    return player, reply
+
+
 async def _invoke_agent(
     agent_input: Any,
     payload: dict[str, Any],
@@ -208,8 +223,14 @@ async def _invoke_agent(
         if event.get("type") in ("message", "interrupt"):
             outputs.append(event)
 
+    if turn is not None:
+        # Blocking SDK calls, so off the event loop.
+        await asyncio.to_thread(record_turn, actor, session_id, *turn_transcript(agent_input, turn),
+                                context.invocation_id)
     game = agent_module.game_store().load(session_id)
     snapshot = game_snapshot(game) if game is not None else None
+    if snapshot is not None and turn is not None and turn.get("game_over"):
+        snapshot["distilled"] = await asyncio.to_thread(distil_adventure, actor, session_id)
     if snapshot is not None:
         await context.emit({"type": "game", "game": snapshot})
     interrupted = bool(outputs and outputs[-1].get("type") == "interrupt")
