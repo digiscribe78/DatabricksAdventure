@@ -1,5 +1,7 @@
 """The story's rules (spec: docs/superpowers/specs/2026-10-17-campaign-design.md). Pure functions."""
 
+from rpg.world import LOCATIONS
+
 SEALS = ("seal_forge", "seal_falls", "seal_mines")
 YES = ("yes",)
 
@@ -19,25 +21,28 @@ FLAG_HINTS = {
     "has_catalog": "you do not yet carry the Lost Catalog",
 }
 
-# Story beats per act: the DM must record each with set_quest_flag when it happens. Listing only the
-# unrecorded ones each turn stops long-term memory ("you already swore that") masking a missing flag.
-BEATS: dict[int, list[tuple[str, str]]] = {
-    1: [("vowed_to_find_aldric", "the player promises Marta to find Keeper Aldric"),
-        ("saw_the_diversion", "the Sweeper shows the older current of the night the river was diverted"),
-        ("spoke_with_aldric", "Keeper Aldric speaks to the player through the Archive doors"),
-        ("knows_cellar_route", "Marta, trusting the player deeply, reveals the cellar route")],
-    2: [("seal_forge", "the player passes the Trial of Kindling by sharing the spark"),
-        ("forge_regret_shared", "Ignatia confesses her forge made the fire for Silo's walls"),
-        ("seal_falls", "the player honestly faces a past choice at the Falls"),
-        ("echo_saw_past_life", "the Echo quotes a choice from another adventure"),
-        ("seal_mines", "the player brings Odo's crew home"),
-        ("crew_rescued", "Odo's trapped crew is rescued")],
-    3: [("has_catalog", "the vault opens with all three seals and the player takes the Lost Catalog"),
-        ("aldric_forgives_silo", "Aldric makes peace with his past and with Silo"),
-        ("grisle_outcome", "the player gets past Warden Grisle (fought, bribed or bluffed)"),
-        ("silo_wounds", "each successful attack on Lord Silo (1, 2, 3)"),
-        ("ending", "Lord Silo yields (might, wits or charm)")],
+# Story beats per act, with where they can happen. Listed in "Story so far" only at their place and only
+# while unrecorded: long-term memory ("you already swore that") would otherwise mask a missing flag.
+BEATS: dict[int, list[tuple[str, str, str]]] = {
+    1: [("vowed_to_find_aldric", "the player promises Marta to find Keeper Aldric", "medallion-inn"),
+        ("knows_cellar_route", "optional, only if Marta's disposition is +2: she reveals the cellar route", "medallion-inn"),
+        ("saw_the_diversion", "the Sweeper shows the older current of the night the river was diverted", "delta-crossing"),
+        ("spoke_with_aldric", "Keeper Aldric speaks to the player through the Archive doors", "unity-archive")],
+    2: [("seal_forge", "the player passes the Trial of Kindling by sharing the spark", "spark-forge"),
+        ("forge_regret_shared", "optional: Ignatia confesses her forge made the fire for Silo's walls", "spark-forge"),
+        ("seal_falls", "the player honestly faces a past choice at the Falls", "streaming-falls"),
+        ("echo_saw_past_life", "optional: the Echo quotes a choice from another adventure", "streaming-falls"),
+        ("seal_mines", "the player brings Odo's crew home", "photon-mines"),
+        ("crew_rescued", "Odo's trapped crew is rescued", "photon-mines")],
+    3: [("has_catalog", "the vault opens with all three seals and the player takes the Lost Catalog", "unity-archive"),
+        ("aldric_forgives_silo", "optional: Aldric makes peace with his past and with Silo", "unity-archive"),
+        ("grisle_outcome", "the player gets past Warden Grisle (fought, bribed or bluffed)", "data-swamp"),
+        ("silo_wounds", "each successful attack on Lord Silo (1, 2, 3)", "silos-keep"),
+        ("ending", "Lord Silo yields (might, wits or charm)", "silos-keep")],
 }
+# Where each story flag may be recorded: the bible's hard rules, enforced in code (spec §7.3).
+FLAG_HOMES = {flag: where for beats in BEATS.values() for flag, _, where in beats}
+AFTER_CATALOG = ("aldric_forgives_silo", "grisle_outcome", "silo_wounds", "ending")
 
 _SEAL_NAMES = {"seal_forge": "Forge", "seal_falls": "Falls", "seal_mines": "Mines"}
 
@@ -53,6 +58,20 @@ def validate_flag(flag: str, value: str) -> str | None:
     return None
 
 
+def check_flag(flag: str, value: str, flags: dict, location_id: str) -> str | None:
+    """Story prerequisites for recording a flag here and now; None if allowed."""
+    home = FLAG_HOMES.get(flag)
+    if home and location_id != home:
+        return f"{flag} can only be recorded at {LOCATIONS[home].name}"
+    if flag == "has_catalog" and not all(flags.get(s) == "yes" for s in SEALS):
+        return "the vault needs all three seals"
+    if flag in AFTER_CATALOG and flags.get("has_catalog") != "yes":
+        return f"{flag} cannot happen before the Lost Catalog is taken"
+    if flag == "silo_wounds" and int(value) != int(flags.get("silo_wounds", "0")) + 1:
+        return "Lord Silo's wounds count up one at a time"
+    return None
+
+
 def _yes(flags: dict, name: str) -> bool:
     return flags.get(name) == "yes"
 
@@ -64,7 +83,9 @@ def act(flags: dict) -> int:
 
 
 def story_so_far(flags: dict, location_id: str) -> str:
-    beats = [f"{flag}: {when}" for flag, when in BEATS[act(flags)] if flag not in flags]
+    if outcome := game_over(flags):
+        return f"The adventure has ended in {outcome}. Narrate only the epilogue; change nothing and call no tools."
+    beats = [f"{flag}: {when}" for flag, when, where in BEATS[act(flags)] if flag not in flags and where == location_id]
     if not beats:
         return _progress(flags, location_id)
     return (f"{_progress(flags, location_id)} Record these story beats with set_quest_flag the moment they "

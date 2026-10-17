@@ -60,9 +60,9 @@ def test_move_after_being_downed_is_ignored():
 
 
 def test_xp_and_flag():
-    s, notes = apply_changes(state(), [{"kind": "character", "xp_delta": 5}, {"kind": "flag", "flag": "saw_the_diversion", "value": "yes"}])
-    assert s.character.xp == 5 and s.flags == {"saw_the_diversion": "yes"}
-    assert "XP +5" in notes and "flag saw_the_diversion = yes" in notes
+    s, notes = apply_changes(state(), [{"kind": "character", "xp_delta": 5}, {"kind": "flag", "flag": "vowed_to_find_aldric", "value": "yes"}])
+    assert s.character.xp == 5 and s.flags == {"vowed_to_find_aldric": "yes"}
+    assert "XP +5" in notes and "flag vowed_to_find_aldric = yes" in notes
 
 
 def test_disposition_clamps():
@@ -105,8 +105,8 @@ def test_gated_move_is_barred_with_reason():
 def test_non_canonical_and_code_owned_flags_are_ignored():
     s, notes = apply_changes(state(), [{"kind": "flag", "flag": "met_marta", "value": "yes"},
                                        {"kind": "flag", "flag": "defeated_by_silo", "value": "yes"},
-                                       {"kind": "flag", "flag": "seal_forge", "value": "yes"}])
-    assert s.flags == {"seal_forge": "yes"}
+                                       {"kind": "flag", "flag": "vowed_to_find_aldric", "value": "yes"}])
+    assert s.flags == {"vowed_to_find_aldric": "yes"}
     assert sum("ignored" in n for n in notes) == 2
 
 
@@ -124,3 +124,16 @@ def test_downed_at_silos_keep_is_defeat_not_waking_at_the_inn():
 def test_marta_trust_sets_code_flag():
     s, _ = apply_changes(state(), [{"kind": "disposition", "npc_id": "marta-quill", "delta": 1}])
     assert s.flags.get("marta_trusts_you") == "yes"
+
+
+def test_story_prerequisite_failures_are_ignored_with_a_note():
+    s, notes = apply_changes(state(), [{"kind": "flag", "flag": "has_catalog", "value": "yes"}])
+    assert "has_catalog" not in s.flags and any("ignored" in n and "Unity Archive" in n for n in notes)
+
+
+def test_nothing_changes_after_the_adventure_has_ended():
+    over = state(location_id="silos-keep", npcs=[], flags={"has_catalog": "yes", "defeated_by_silo": "yes"})
+    s, notes = apply_changes(over, [{"kind": "character", "xp_delta": 5}, {"kind": "move", "location_id": "data-swamp"}])
+    assert s.character.xp == 0 and s.location_id == "silos-keep"
+    assert not any("defeated by Lord Silo" in n for n in notes)
+    assert any("adventure is over" in n for n in notes)

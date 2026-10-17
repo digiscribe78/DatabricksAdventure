@@ -4,7 +4,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
 
-from rpg.campaign import FLAG_HINTS, validate_flag
+from rpg.campaign import FLAG_HINTS, check_flag, game_over, validate_flag
 from rpg.world import LOCATIONS, START_LOCATION_ID, Character
 
 FLAG_PATTERN = r"^[a-z][a-z0-9_]{0,47}$"
@@ -17,6 +17,7 @@ class NpcCard(BaseModel):
     speech_style: str
     secrets: str
     home_location_id: str
+    reveal_after: str | None = None  # a flag that must be "yes" before the DM may know the secret
 
 
 class NpcPresence(NpcCard):
@@ -104,6 +105,8 @@ def _downed(state: GameState, notes: list[str]) -> None:
 
 def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, list[str]]:
     parsed = _CHANGES.validate_python(changes)
+    if outcome := game_over(state.flags):
+        return state.model_copy(deep=True), [f"the adventure is over ({outcome}): nothing more changes"]
     new = state.model_copy(deep=True)
     notes: list[str] = []
     downed = False
@@ -120,7 +123,7 @@ def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, lis
                 _downed(new, notes)
                 downed = True
         elif isinstance(ch, FlagChange):
-            problem = validate_flag(ch.flag, ch.value)
+            problem = validate_flag(ch.flag, ch.value) or check_flag(ch.flag, ch.value, new.flags, new.location_id)
             if problem:
                 notes.append(f"ignored flag {ch.flag}: {problem}")
                 continue

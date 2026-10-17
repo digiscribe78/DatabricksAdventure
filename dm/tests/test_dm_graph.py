@@ -501,3 +501,22 @@ def test_ending_flag_sets_victory():
     )
     turn = run(make(model, [roll_check, set_quest_flag], store), "I offer Silo Aldric's letters.")["turn"]
     assert turn["game_over"] == "victory"
+
+
+def test_aldric_secret_is_hidden_until_act_three():
+    from rpg.state import NpcCard
+
+    aldric = NpcCard(npc_id="keeper-aldric", name="Keeper Aldric", persona="p", speech_style="s",
+                     secrets="Lord Silo was his master.", home_location_id="unity-archive", reveal_after="has_catalog")
+    for flags, visible in [({"spoke_with_aldric": "yes"}, False), ({"has_catalog": "yes"}, True)]:
+        store = InMemoryStore([aldric])
+        store.create_adventure("t1", "p", "Brannoc", "warrior")
+        game = store.load("t1")
+        game.location_id = "unity-archive"
+        game.flags.update(flags)
+        store.commit("t1", game)
+        model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+        run(make(model, store=store), "Who is Silo to you?")
+        system = model.reason_calls[0][0].content
+        assert ("Lord Silo was his master" in system) is visible
+        assert "Never reveal" in system  # bible DM rules live in the system prompt, not only in lore

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { playTurn, type TurnRequest } from './api';
 import { ScryingGlass } from './ScryingGlass';
 import { sceneImage } from './scene';
-import { applyEvent, failTurn, newView, startTurn, type GameView } from './state';
+import { applyEvent, canAct, failTurn, newView, startTurn, type GameView } from './state';
 
 export function GameScreen({ sessionId, newGame, onQuit }: {
   sessionId: string;
@@ -31,7 +31,7 @@ export function GameScreen({ sessionId, newGame, onQuit }: {
 
   const act = (msg: string) => {
     const m = msg.trim();
-    if (!m || view.busy) return;
+    if (!m || !canAct(view)) return;
     setText('');
     void send({ message: m }, m);
   };
@@ -59,13 +59,18 @@ export function GameScreen({ sessionId, newGame, onQuit }: {
               )}
             </p>
           )}
-          {view.gameOver && <p className="game-over">— {view.gameOver === 'victory' ? 'Victory!' : 'Your tale ends here.'} —</p>}
+          {view.gameOver && (
+            <p className="game-over">
+              — {view.gameOver === 'victory' ? 'Victory!' : 'Your tale ends here.'} —{' '}
+              <button className="bbtn inline" onClick={onQuit}>Begin a new tale ▸</button>
+            </p>
+          )}
           <div className="choices">
             {view.choices.map((ch) => (
-              <button key={ch} className="bbtn" disabled={view.busy} onClick={() => act(ch)}>{ch}</button>
+              <button key={ch} className="bbtn" disabled={!canAct(view)} onClick={() => act(ch)}>{ch}</button>
             ))}
           </div>
-          <input className="parchment-input" value={text} disabled={view.busy} placeholder={view.busy ? 'The DM ponders…' : '…or type what you do'}
+          <input className="parchment-input" value={text} disabled={!canAct(view)} placeholder={view.busy ? 'The DM ponders…' : '…or type what you do'}
                  onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && act(text)} />
         </div>
         <div className="frame sheet">

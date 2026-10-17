@@ -62,7 +62,7 @@ def test_update_character_rejects_out_of_bounds(args):
 
 
 def test_quest_flag_validates_slug():
-    assert call(set_quest_flag, flag="saw_the_diversion", value="yes")[1] == [{"kind": "flag", "flag": "saw_the_diversion", "value": "yes"}]
+    assert call(set_quest_flag, flag="vowed_to_find_aldric", value="yes")[1] == [{"kind": "flag", "flag": "vowed_to_find_aldric", "value": "yes"}]
     content, staged = call(set_quest_flag, flag="Met Marta!", value="yes")
     assert "error" in content and staged == []
 

@@ -56,7 +56,7 @@ def test_every_gate_flag_has_an_in_world_hint():
 def test_story_so_far_lists_unrecorded_beats_for_this_act():
     one = story_so_far({}, "medallion-inn")
     assert "set_quest_flag" in one
-    assert "vowed_to_find_aldric" in one and "spoke_with_aldric" in one
+    assert "vowed_to_find_aldric" in one
     assert "seal_forge" not in one  # Act 2 beats aren't listed in Act 1
     done = story_so_far({"vowed_to_find_aldric": "yes"}, "medallion-inn")
     assert "vowed_to_find_aldric:" not in done  # recorded beats drop off the list
@@ -64,3 +64,38 @@ def test_story_so_far_lists_unrecorded_beats_for_this_act():
     assert "seal_forge" in two and "vowed_to_find_aldric" not in two
     finale = story_so_far({"has_catalog": "yes"}, "silos-keep")
     assert "ending" in finale and "silo_wounds" in finale
+
+
+from rpg.campaign import check_flag  # noqa: E402
+
+SEALS_DONE = {"spoke_with_aldric": "yes", "seal_forge": "yes", "seal_falls": "yes", "seal_mines": "yes"}
+
+
+def test_story_prerequisites_are_enforced():
+    assert "Unity Archive" in check_flag("has_catalog", "yes", {}, "medallion-inn")
+    assert "three seals" in check_flag("has_catalog", "yes", {"seal_forge": "yes"}, "unity-archive")
+    assert check_flag("has_catalog", "yes", SEALS_DONE, "unity-archive") is None
+    assert check_flag("seal_forge", "yes", {"spoke_with_aldric": "yes"}, "spark-forge") is None
+    assert "Spark Forge" in check_flag("seal_forge", "yes", {}, "medallion-inn")
+    assert "Data Swamp" in check_flag("grisle_outcome", "fought", {"has_catalog": "yes"}, "silos-keep")
+    assert "Silo's Keep" in check_flag("ending", "might", {"has_catalog": "yes"}, "medallion-inn")
+    assert check_flag("ending", "wits", {"has_catalog": "yes"}, "silos-keep") is None
+    assert check_flag("silo_wounds", "1", {"has_catalog": "yes"}, "silos-keep") is None
+    assert "one at a time" in check_flag("silo_wounds", "3", {"has_catalog": "yes", "silo_wounds": "1"}, "silos-keep")
+    assert "one at a time" in check_flag("silo_wounds", "1", {"has_catalog": "yes", "silo_wounds": "3"}, "silos-keep")
+
+
+def test_finished_adventure_story_is_epilogue_only():
+    for flags, word in [({"ending": "charm"}, "victory"), ({"defeated_by_silo": "yes"}, "defeat")]:
+        text = story_so_far({"has_catalog": "yes", **flags}, "silos-keep")
+        assert text.startswith(f"The adventure has ended in {word}") and "set_quest_flag" not in text
+
+
+def test_beats_are_listed_only_where_they_can_happen():
+    inn = story_so_far({}, "medallion-inn")
+    assert "vowed_to_find_aldric" in inn and "spoke_with_aldric" not in inn
+    assert "optional" in inn and "+2" in inn  # the cellar route is optional and conditional
+    assert "spoke_with_aldric" in story_so_far({}, "unity-archive")
+    mines = story_so_far(SEALS_DONE, "photon-mines")
+    assert "has_catalog" not in mines and "ending" not in mines
+    assert "grisle_outcome" in story_so_far({"has_catalog": "yes"}, "data-swamp")

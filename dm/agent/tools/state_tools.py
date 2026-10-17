@@ -9,7 +9,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import ValidationError
 
-from rpg.campaign import FLAG_HINTS, validate_flag
+from rpg.campaign import FLAG_HINTS, check_flag, validate_flag
 from rpg.state import CharacterChange, DispositionChange, FlagChange, MoveChange
 from rpg.world import LOCATIONS
 
@@ -56,7 +56,7 @@ def update_character(
 @tool
 def set_quest_flag(flag: str, value: str, state: State, tool_call_id: CallId) -> Command:
     """Record story progress as a snake_case flag, e.g. met_the_sweeper = yes or archive_door = forced."""
-    problem = validate_flag(flag, value)
+    problem = validate_flag(flag, value) or check_flag(flag, value, state.get("flags") or {}, state.get("location_id", ""))
     if problem:
         return reply("set_quest_flag", tool_call_id, {"error": problem})
     return _stage("set_quest_flag", tool_call_id, FlagChange, flag=flag, value=value)

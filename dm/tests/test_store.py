@@ -67,7 +67,7 @@ def test_commit_persists_all_kinds_of_change(store, sid):
     game = store.create_adventure(sid, "player-1", "Brannoc", "warrior")
     game, _ = apply_changes(game, [
         {"kind": "character", "hp_delta": -4, "gold_delta": -2, "xp_delta": 5, "items_add": ["lantern", "rope"]},
-        {"kind": "flag", "flag": "saw_the_diversion", "value": "yes"},
+        {"kind": "flag", "flag": "vowed_to_find_aldric", "value": "yes"},
         {"kind": "disposition", "npc_id": "marta-quill", "delta": 1},
         {"kind": "move", "location_id": "delta-crossing"},
     ])
@@ -76,7 +76,7 @@ def test_commit_persists_all_kinds_of_change(store, sid):
     c = loaded.character
     assert (c.hp, c.gold, c.xp) == (14, 10, 5)
     assert sorted(c.inventory) == sorted(["longsword (d6+2)", "shield", "rope", "lantern", "rope"])
-    assert loaded.flags == {"saw_the_diversion": "yes", "marta_trusts_you": "yes"}
+    assert loaded.flags == {"vowed_to_find_aldric": "yes", "marta_trusts_you": "yes"}
     assert loaded.location_id == "delta-crossing"
     assert [n.npc_id for n in loaded.npcs] == ["the-sweeper"]
     back, _ = apply_changes(loaded, [{"kind": "move", "location_id": "medallion-inn"}])
@@ -103,3 +103,13 @@ def test_client_session_id_is_stored_and_listed(store, sid):
     store.create_adventure(sid, "player-ref-test", "Brannoc", "warrior", client_session_id="abc-123")
     listed = [a for a in store.list_adventures("player-ref-test") if a["session_id"] == sid]
     assert listed[0]["client_session_id"] == "abc-123"
+
+
+def test_npc_reveal_after_round_trips(store, sid):
+    from rpg.state import NpcCard
+
+    store.seed_npcs([NpcCard(npc_id="test-secretive", name="T", persona="p", speech_style="s", secrets="x",
+                             home_location_id="medallion-inn", reveal_after="has_catalog")])
+    store.create_adventure(sid, "p", "B", "warrior")
+    card = [n for n in store.load(sid).npcs if n.npc_id == "test-secretive"][0]
+    assert card.reveal_after == "has_catalog"
