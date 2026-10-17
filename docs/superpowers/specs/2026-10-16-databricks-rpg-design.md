@@ -337,4 +337,4 @@ DatabricksAdventure/
 4. **Game app.** Layout A, the curtain panel and the streaming proxy.
 5. **Guardrails.** The Unity Gateway policies and in-world refusals.
 6. **Eval.** Scenarios, scorers, judges and `make eval`.
-7. **Full content and polish.** All 8 locations, NPCs and images, the end screen, the concepts guide, README hardening and one-command deploy.
+7. **Full content and polish.** All 8 locations, NPCs and images, the end screen, the concepts guide, README hardening and one-command deploy. Done: content and art (M7), the end screen, 💡 hints and the 📖 Guide (M8).

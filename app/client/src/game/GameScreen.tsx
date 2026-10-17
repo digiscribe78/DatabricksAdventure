@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playTurn, type TurnRequest } from './api';
 import { trackFor } from './music';
+import { EndScreen } from './EndScreen';
 import { inlineParts } from './format';
+import { revealHint } from './hints';
 import { ScryingGlass } from './ScryingGlass';
 import { sceneImage } from './scene';
 import { applyEvent, canAct, failTurn, newView, startTurn, type GameView } from './state';
 
-export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
+export function GameScreen({ sessionId, newGame, onQuit, onTrack, onGuide }: {
   sessionId: string;
   newGame?: TurnRequest['newGame'];
   onQuit: () => void;
   onTrack: (track: string) => void;
+  onGuide: (page?: string) => void;
 }) {
   const [view, setView] = useState<GameView>(() => newView(sessionId));
   const [glassOpen, setGlassOpen] = useState(true);
@@ -44,7 +47,7 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
     const m = msg.trim();
     if (!m || !canAct(view)) return;
     setText('');
-    void send({ message: m }, m);
+    void send({ message: m, hintsSeen: view.hintsSeen || undefined }, m);
   };
 
   const c = view.game?.character;
@@ -72,14 +75,9 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
               )}
             </p>
           )}
-          {view.gameOver && (
-            <p className="game-over">
-              — {view.gameOver === 'victory' ? 'Victory!' : 'Your tale ends here.'} —{' '}
-              <button className="bbtn inline" onClick={onQuit}>Begin a new tale ▸</button>
-            </p>
-          )}
         </div>
         <div className="frame actions">
+          {view.gameOver ? <EndScreen view={view} onNewTale={onQuit} onGuide={onGuide} /> : (<>
           <div className="choices">
             {view.choices.map((ch) => (
               <button key={ch} className="bbtn" disabled={!canAct(view)} onClick={() => act(ch)}>{ch}</button>
@@ -87,10 +85,26 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
           </div>
           <input className="parchment-input" value={text} disabled={!canAct(view)} placeholder={view.busy ? 'The DM ponders…' : '…or type what you do'}
                  onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && act(text)} />
+          {view.game?.hint && canAct(view) && (
+            <div className="hint-row">
+              <button className="bbtn inline" onClick={() => setView((v) => revealHint(v))}>💡 Hint</button>
+              {view.hintTier > 0 && (
+                <div className="hint-box">
+                  <p>💡 {view.game.hint.nudge}</p>
+                  {view.hintTier === 2 && <p>{view.game.hint.clearer}</p>}
+                  {view.hintTier === 1 && (
+                    <button className="bbtn inline" onClick={() => setView((v) => revealHint(v))}>Clearer hint ▸</button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          </>)}
         </div>
       </main>
       <div className="side">
-        <ScryingGlass view={view} open={glassOpen} onToggle={() => setGlassOpen(!glassOpen)} />
+        <button className="bbtn inline guide-btn" onClick={() => onGuide()}>📖 Guide</button>
+        <ScryingGlass view={view} open={glassOpen} onToggle={() => setGlassOpen(!glassOpen)} onGuide={onGuide} />
         <div className="frame sheet">
           {c ? (
             <>

@@ -1,0 +1,29 @@
+# 💡 Hints: two tiers per required story beat (spec: docs/superpowers/specs/2026-10-17-m8-learning-layer-design.md §2).
+# A nudge stays in-world and spoiler-light; the clearer hint says what to do. Never name a later act.
+vowed_to_find_aldric:
+  nudge: "Marta keeps glancing at the door, as if hoping someone will go where she cannot."
+  clearer: "Talk to Marta Quill at the Medallion Inn and promise to find Keeper Aldric."
+saw_the_diversion:
+  nudge: "The river at the Delta Crossing runs in layers. The ferryman who works it must know why."
+  clearer: "Go to the Delta Crossing and ask the Sweeper to show you the river's older current."
+spoke_with_aldric:
+  nudge: "The Keeper's Archive lies upriver, its bronze doors sealed. Someone inside may still answer."
+  clearer: "Go to the Unity Archive and call out to Keeper Aldric through the bronze doors."
+seal_forge:
+  nudge: "At the Spark Forge the apprentices say no one wins the Trial of Kindling alone."
+  clearer: "At the Spark Forge, take the Trial of Kindling and share the spark rather than keep it."
+seal_falls:
+  nudge: "The mist at the Streaming Falls shows travellers their own past. It rewards honesty, not pride."
+  clearer: "At the Streaming Falls, face the past choice the mist shows you and own it honestly."
+seal_mines:
+  nudge: "Down in the Photon Mines, Odo Brack will not rest while his crew is trapped below."
+  clearer: "Go to the Photon Mines and help Odo Brack bring his trapped crew home."
+has_catalog:
+  nudge: "With three seals in hand, the vault beneath the Unity Archive may finally open."
+  clearer: "Return to the Unity Archive with all three seals and open the vault to take the Lost Catalog."
+grisle_outcome:
+  nudge: "The Data Swamp has a warden, and wardens can be fought, bought or fooled."
+  clearer: "In the Data Swamp, get past Warden Grisle: fight, bribe or bluff your way through."
+ending:
+  nudge: "Lord Silo can be beaten by strength, outwitted with proof, or talked down with a true word."
+  clearer: "In Silo's Keep, strike, outwit or out-talk Lord Silo until he yields."

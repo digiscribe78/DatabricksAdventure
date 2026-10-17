@@ -147,3 +147,23 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 .glass-foot { display: flex; justify-content: space-between; margin-top: 10px; opacity: 0.85; }
 .glass-foot a { color: var(--gold-hi); }
 @media (max-width: 900px) { .game-screen { grid-template-columns: 1fr; } .bscry { position: static; max-height: none; } }
+
+.hint-row { margin-top: 6px; }
+.hint-row > .bbtn.inline { margin-left: 0; }
+.hint-box { border: 2px dashed #6b4f1d; padding: 6px 10px; margin-top: 6px; color: #f2d48a; }
+.hint-box p { margin: 0 0 6px; }
+
+.end-screen { text-align: left; }
+.end-screen .recap { list-style: none; padding: 0; margin: 4px 0 8px; }
+.end-screen .note { opacity: 0.75; font-style: italic; }
+.end-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.end-actions a { color: var(--gold-hi); }
+.guide-overlay { position: fixed; inset: 0; background: rgba(10, 6, 16, 0.8); display: flex; align-items: center; justify-content: center; z-index: 20; }
+.guide { width: min(960px, 94vw); max-height: 86vh; overflow: auto; }
+.guide-head { display: flex; justify-content: space-between; align-items: center; }
+.guide-body { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
+.guide-list { list-style: none; padding: 0; margin: 0; }
+.guide-list .q { text-align: left; width: 100%; padding: 3px 0; }
+.guide-list .q.on { color: var(--gold-hi); }
+.guide-btn { margin: 0 0 8px; align-self: flex-start; }
+@media (max-width: 700px) { .guide-body { grid-template-columns: 1fr; } }

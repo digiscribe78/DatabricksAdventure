@@ -5,6 +5,12 @@ import type { StreamEvent } from './sse';
 export const TurnEventSchema = z.object({ type: z.string(), summary: z.string(), detail: z.unknown().optional() });
 export type TurnEvent = z.infer<typeof TurnEventSchema>;
 
+export const HintSchema = z.object({ beat: z.string(), where: z.string(), nudge: z.string(), clearer: z.string() });
+export const StatsSchema = z.object({
+  rolls: z.number(), attacks: z.number(), lore: z.number(), memories: z.number(), state_commits: z.number(),
+  guardrails: z.number(), hints: z.number(), turns: z.number(), since_start: z.boolean(),
+});
+
 export const GameSnapshotSchema = z.object({
   character: z.object({
     name: z.string(), archetype: z.string(), hp: z.number(), max_hp: z.number(), might: z.number(),
@@ -16,6 +22,9 @@ export const GameSnapshotSchema = z.object({
   flags: z.record(z.string(), z.string()),
   npcs: z.array(z.object({ npc_id: z.string(), name: z.string(), disposition: z.number() })),
   traces_url: z.string().nullable(),
+  hint: HintSchema.nullable().optional(),
+  stats: StatsSchema.nullable().optional(),
+  distilled: z.array(z.string()).optional(),
 });
 export type GameSnapshot = z.infer<typeof GameSnapshotSchema>;
 
@@ -49,18 +58,21 @@ export interface GameView {
   gameOver?: string | null;
   history: string[];
   lastRequest?: LastRequest; // what Try again resends: the exact request that failed
+  hintTier: 0 | 1 | 2; // transient UI: which hint tier is showing
+  hintsSeen: number; // hint presses since the last turn, sent with the next one
 }
 
 const HISTORY_LIMIT = 20;
 const keep = (lines: string[]) => lines.slice(-HISTORY_LIMIT);
 
 export const newView = (sessionId: string): GameView => ({
-  sessionId, narration: '', choices: [], events: [], nodes: [], busy: false, history: [],
+  sessionId, narration: '', choices: [], events: [], nodes: [], busy: false, history: [], hintTier: 0, hintsSeen: 0,
 });
 
 export function startTurn(v: GameView, now: number, playerText?: string, request?: LastRequest): GameView {
   return {
     ...v, lastRequest: request ?? v.lastRequest, busy: true, error: undefined, nodes: [], events: [], startedAt: now, elapsedMs: undefined,
+    hintTier: 0, hintsSeen: 0,
     history: playerText ? keep([...v.history, `> ${playerText}`]) : v.history,
   };
 }

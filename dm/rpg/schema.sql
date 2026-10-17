@@ -59,3 +59,18 @@ CREATE INDEX IF NOT EXISTS characters_player_idx ON rpg.characters (player_id);
 
 ALTER TABLE rpg.adventures ADD COLUMN IF NOT EXISTS client_session_id text;
 ALTER TABLE rpg.npc_cards ADD COLUMN IF NOT EXISTS reveal_after text;
+
+-- "What you just saw" counts per adventure, shown on the end screen (M8).
+CREATE TABLE IF NOT EXISTS rpg.adventure_stats (
+    adventure_id  text PRIMARY KEY REFERENCES rpg.adventures (id) ON DELETE CASCADE,
+    rolls         int NOT NULL DEFAULT 0,
+    attacks       int NOT NULL DEFAULT 0,
+    lore          int NOT NULL DEFAULT 0,
+    memories      int NOT NULL DEFAULT 0,
+    state_commits int NOT NULL DEFAULT 0,
+    guardrails    int NOT NULL DEFAULT 0,
+    hints         int NOT NULL DEFAULT 0,
+    turns         int NOT NULL DEFAULT 0,
+    since_start   boolean NOT NULL DEFAULT true,
+    updated_at    timestamptz NOT NULL DEFAULT now()
+);

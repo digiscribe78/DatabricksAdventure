@@ -7,6 +7,7 @@ const TurnBody = z.object({
   sessionId: z.string().regex(/^[A-Za-z0-9-]{1,64}$/),
   message: z.string().max(2000).optional(),
   newGame: z.object({ name: z.string().min(1).max(40), archetype: z.enum(['warrior', 'mage', 'bard']) }).optional(),
+  hintsSeen: z.number().int().min(0).max(20).optional(),
 });
 const ListResult = z.object({ output: z.object({ adventures: z.array(z.unknown()) }).partial() }).partial();
 
@@ -68,7 +69,7 @@ createApp({
           const upstream = await fetch(`${dm}/api/invocations`, {
             method: 'POST',
             headers: dmHeaders(token),
-            body: JSON.stringify(invocationBody({ message: body.message, newGame: body.newGame }, body.sessionId, true)),
+            body: JSON.stringify(invocationBody({ message: body.message, newGame: body.newGame, hintsSeen: body.hintsSeen }, body.sessionId, true)),
           });
           if (!upstream.ok || !upstream.body) throw new HttpError(upstream.status || 502, await upstream.text());
           res.setHeader('Content-Type', 'text/event-stream');

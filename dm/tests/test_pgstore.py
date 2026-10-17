@@ -27,5 +27,5 @@ def test_token_is_cached_then_refreshed(monkeypatch):
 
 def test_schema_sql_creates_all_tables():
     sql = pg.SCHEMA_SQL
-    for table in ("characters", "inventory", "quest_flags", "adventures", "npc_cards", "npc_disposition"):
+    for table in ("characters", "inventory", "quest_flags", "adventures", "npc_cards", "npc_disposition", "adventure_stats"):
         assert f"rpg.{table}" in sql

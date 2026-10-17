@@ -29,6 +29,7 @@ export interface TurnInput {
   message?: string;
   newGame?: { name: string; archetype: Archetype };
   listAdventures?: boolean;
+  hintsSeen?: number;
 }
 
 export interface InvocationBody {
@@ -43,6 +44,7 @@ export function invocationBody(input: TurnInput, sessionId: string, stream: bool
   if (input.listAdventures) body = { list_adventures: true };
   else if (input.newGame) body = { messages: [], new_game: input.newGame, client_session_id: sessionId };
   else body = { messages: input.message ? [{ role: 'user', content: input.message }] : [] };
+  if (input.hintsSeen && !input.listAdventures) body.hints_seen = input.hintsSeen;
   return { id: randomUUID(), session_id: sessionId, stream, input: body };
 }
 

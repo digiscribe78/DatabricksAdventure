@@ -113,3 +113,26 @@ def test_npc_reveal_after_round_trips(store, sid):
     store.create_adventure(sid, "p", "B", "warrior")
     card = [n for n in store.load(sid).npcs if n.npc_id == "test-secretive"][0]
     assert card.reveal_after == "has_catalog"
+
+
+def test_stats_start_at_zero_and_add_up(store, sid):
+    from rpg.store import STAT_KEYS
+
+    store.create_adventure(sid, "p1", "Tess", "warrior")
+    assert store.stats(sid) == {**{k: 0 for k in STAT_KEYS}, "since_start": True}
+    store.add_stats(sid, {"lore": 2, "turns": 1})
+    store.add_stats(sid, {"lore": 1, "rolls": 1, "turns": 1, "bogus": 9})
+    st = store.stats(sid)
+    assert (st["lore"], st["rolls"], st["turns"]) == (3, 1, 2) and "bogus" not in st
+
+
+def test_a_save_from_before_stats_counts_from_now(store, sid):
+    store.create_adventure(sid, "p1", "Tess", "warrior")
+    if isinstance(store, InMemoryStore):
+        store._adventures[sid].pop("stats")  # as if created before M8
+    else:
+        with store._connect() as conn:
+            conn.execute("DELETE FROM rpg.adventure_stats WHERE adventure_id = %s", (sid,))
+    assert store.stats(sid) is None
+    store.add_stats(sid, {"turns": 1})
+    assert store.stats(sid)["turns"] == 1 and store.stats(sid)["since_start"] is False
