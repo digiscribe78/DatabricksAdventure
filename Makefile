@@ -56,7 +56,7 @@ app-dev:
 	printf 'DM_URL=%s\nDM_DEV_TOKEN=%s\n' \
 		"$$(databricks apps get agent-bricks-dm --profile $(PROFILE) -o json | jq -r .url)" \
 		"$$(databricks auth token --profile $(PROFILE) | jq -r .access_token)" > app/.env
-	cd app && npm run dev
+	cd app && DATABRICKS_CONFIG_PROFILE=$(PROFILE) npm run dev
 
 grant-player:
 	@test -n "$(PROFILE)" -a -n "$(PLAYER)" || (echo "Set PROFILE=… PLAYER=<user email>" && exit 1)
