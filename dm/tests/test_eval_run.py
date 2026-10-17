@@ -26,3 +26,22 @@ def test_summary_counts_passes_skips_na_and_ignores_expectation_columns():
     assert "in_character" in text and "n/a" in text
     assert "b · tool_selection: move_to not called" in text and "b · safety: unsafe" in text
     assert "tools" not in text.replace("tool_selection", "")
+
+
+def test_errored_rows_are_counted_not_hidden_as_na():
+    df = pd.DataFrame([
+        {"request": {"scenario_id": "a"}, "safety/value": "yes"},
+        {"request": {"scenario_id": "b"}, "safety/value": math.nan, "safety/error_message": "timed out"},
+    ])
+    assert "1/1  (100%), 1 not scored" in summarise(df, ["safety"])
+
+
+def test_code_scorer_errors_mean_the_harness_broke():
+    from evals.run import harness_errors
+
+    df = pd.DataFrame([
+        {"request": {"scenario_id": "a"}, "tool_selection/value": math.nan,
+         "tool_selection/error_message": "no eval.details on the trace", "safety/error_message": "timed out"},
+        {"request": {"scenario_id": "b"}, "tool_selection/value": math.nan, "tool_selection/error_message": None},
+    ])
+    assert harness_errors(df, ["tool_selection"]) == ["a · tool_selection: no eval.details on the trace"]

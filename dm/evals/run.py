@@ -1,6 +1,6 @@
 """`make eval`: play every scenario against the real DM and print its report card.
 
-Spec: docs/superpowers/specs/2026-10-17-m6-evals-design.md. Report only: exits 0 whatever the scores.
+Spec: docs/superpowers/specs/2026-10-17-m6-evals-design.md. Report only: exits 0 whatever the scores, and 1 only if a code scorer errored (a harness bug).
 """
 
 import json
@@ -37,21 +37,36 @@ def _missing(value) -> bool:
 def summarise(df, names: list[str]) -> str:
     """Pass rate per scorer (n/a when nothing applied), then each failure with its rationale.
 
+    Rows with no value (nothing to judge, or the scorer errored) are counted as "not scored", so a
+    judge that times out on some rows can't pass for a clean 100%.
+
     Only the given scorer names are read: `result_df` also has `<key>/value` columns for expectations.
     """
     lines, failures = ["The DM's report card", ""], []
     for name in names:
         column = f"{name}/value"
         values = [] if column not in df else [v for v in df[column] if not _missing(v)]
+        unscored = 0 if column not in df else len(df) - len(values)
         passed = sum(1 for v in values if v in PASS)
         failed = sum(1 for v in values if v in FAIL)
         rate = f"{passed}/{passed + failed}  ({round(100 * passed / (passed + failed))}%)" if passed + failed else "n/a"
-        lines.append(f"  {name:<26}{rate}")
+        lines.append(f"  {name:<26}{rate}" + (f", {unscored} not scored" if unscored and values else ""))
         if column in df:
             for _, row in df.iterrows():
                 if not _missing(row[column]) and row[column] in FAIL:
                     failures.append(f"  - {_scenario_id(row['request'])} · {name}: {row.get(f'{name}/rationale') or ''}")
     return "\n".join([*lines, "", "Failures", *(failures or ["  none"])])
+
+
+def harness_errors(df, names: list[str]) -> list[str]:
+    """Code-scorer errors: these scorers return a value or nothing, so an error means the harness broke."""
+    found = []
+    for name in names:
+        column = f"{name}/error_message"
+        if column in df:
+            found += [f"{_scenario_id(row['request'])} · {name}: {row[column]}"
+                      for _, row in df.iterrows() if not _missing(row[column])]
+    return found
 
 
 def main() -> int:
@@ -76,6 +91,9 @@ def main() -> int:
                                    scorers=scorers)
     print(summarise(result.result_df, [s.name for s in scorers]))
     print(f"\nModel {MODEL}. Full results: MLflow experiment {EXPERIMENT}, run {result.run_id}.")
+    if broken := harness_errors(result.result_df, [s.name for s in CODE_SCORERS]):
+        print("\nThe harness broke (code scorers errored):", *broken, sep="\n  ", file=sys.stderr)
+        return 1
     return 0
 
 
