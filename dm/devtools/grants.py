@@ -137,6 +137,15 @@ def main(argv: list[str] | None = None) -> int:
         grant_model_service(profile, f"{catalog}.{schema}.dm_model", sp)
     except RuntimeError as e:
         failures.append(f"model service EXECUTE: {e}")
+    try:
+        from databricks_agentkit import AgentKitClient
+
+        from agent.transcripts import transcript_store_name
+        from devtools.transcripts_store import grant_store
+
+        grant_store(AgentKitClient(w), transcript_store_name(), sp)
+    except Exception as e:  # noqa: BLE001
+        failures.append(f"transcript store WRITE: {e}")
     for f in failures:
         print(f"GRANT FAILED: {f}", file=sys.stderr)
     print(f"service principal {sp}: game-db attached; {len(failures)} grant failure(s)")
