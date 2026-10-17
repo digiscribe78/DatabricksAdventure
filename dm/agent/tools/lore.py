@@ -4,9 +4,11 @@ import json
 import os
 from typing import Annotated, Callable
 
+import mlflow
 from databricks_agentkit import workspace_client
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
+from mlflow.entities import SpanType
 
 from rpg.world import LOCATIONS
 
@@ -50,6 +52,21 @@ def _query_index(query: str, locations: list[str]) -> list[dict]:
 SEARCH: Callable[[str, list[str]], list[dict]] = _query_index
 
 
+def documents(passages: list[dict]) -> list[dict]:
+    """Passages as retriever documents, the shape MLflow's retrieval judges read."""
+    return [{"page_content": p["text"],
+             "metadata": {"doc_uri": p["source"], "page": p["page"], "location_id": p["location_id"]}}
+            for p in passages]
+
+
+def _retrieve(query: str, locations: list[str]) -> list[dict]:
+    with mlflow.start_span(name="lore_index", span_type=SpanType.RETRIEVER) as span:
+        span.set_inputs({"query": query, "locations": locations})
+        passages = SEARCH(query, locations)
+        span.set_outputs(documents(passages))
+    return passages
+
+
 @tool
 def search_lore(query: str, state: Annotated[dict, InjectedState]) -> dict:
     """Search the Kingdom of Sparkia's lorebooks for places, people, creatures, history and rules.
@@ -59,7 +76,7 @@ def search_lore(query: str, state: Annotated[dict, InjectedState]) -> dict:
     such as "the ferryman at the Delta Crossing". Stay consistent with what it returns.
     """
     try:
-        passages = SEARCH(query, scope(state.get("location_id", ""), state.get("flags") or {}))
+        passages = _retrieve(query, scope(state.get("location_id", ""), state.get("flags") or {}))
     except Exception as e:  # noqa: BLE001 - lore outages must not break the turn
         return {"error": f"lore unavailable: {e}"}
     return {"query": query, "passages": passages}

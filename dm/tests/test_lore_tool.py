@@ -94,3 +94,24 @@ def test_query_index_handles_empty_result(monkeypatch):
     monkeypatch.setenv("LORE_INDEX", "c.s.lore_index")
     monkeypatch.setattr(lore, "workspace_client", lambda: SimpleNamespace(vector_search_indexes=FakeIndexes()))
     assert lore._query_index("x", ["global"]) == []
+
+
+def test_documents_shape_for_the_groundedness_judge():
+    assert lore.documents([PASSAGE]) == [{
+        "page_content": "The Sweeper...",
+        "metadata": {"doc_uri": "bestiary", "page": 1, "location_id": "global"},
+    }]
+
+
+def test_search_is_traced_as_a_retriever_span(calls, local_mlflow):
+    import mlflow
+    from mlflow.entities import SpanType
+
+    @mlflow.trace
+    def turn():
+        return lore.search_lore.invoke({"query": "ferryman", "state": STATE})
+
+    assert turn()["passages"] == [PASSAGE]
+    trace = mlflow.get_trace(mlflow.get_last_active_trace_id())
+    [span] = [s for s in trace.data.spans if s.span_type == SpanType.RETRIEVER]
+    assert span.outputs == lore.documents([PASSAGE])
