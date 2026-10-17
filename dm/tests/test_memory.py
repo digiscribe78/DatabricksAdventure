@@ -11,17 +11,23 @@ def test_no_store_configured_returns_nothing(monkeypatch):
 def test_recall_searches_actor_partition(monkeypatch):
     calls = []
 
-    class Api:
-        def do(self, method, path, body):
-            calls.append((method, path, body))
-            return {"managed_memory_entries": [{"content": "Spared the thief"}, {"content": "Owes Marta a story"}]}
+    def hit(text):
+        return SimpleNamespace(memory=SimpleNamespace(content=text), score=0.5)
+
+    class Store:
+        def search(self, *, actor_id, query, limit):
+            calls.append((actor_id, query, limit))
+            return [hit("Spared the thief"), hit("Owes Marta a story"), hit("")]
+
+    class Stores:
+        def get(self, name):
+            calls.append(("get", name))
+            return Store()
 
     monkeypatch.setattr(memory, "resolve_memory_store", lambda store=None: "mem-1")
-    monkeypatch.setattr(memory, "_api", lambda: Api())
+    monkeypatch.setattr(memory, "_client", lambda: SimpleNamespace(memory_stores=Stores()))
     assert memory.recall_memories("p1", limit=2) == ["Spared the thief", "Owes Marta a story"]
-    method, path, body = calls[0]
-    assert method == "POST" and path.endswith("/memory-stores/mem-1/entries:search")
-    assert body == {"actor_id": "p1", "query": memory.RECALL_QUERY, "limit": 2}
+    assert calls == [("get", "mem-1"), ("p1", memory.RECALL_QUERY, 2)]
 
 
 def test_memory_module_uses_only_public_agentkit_names():
