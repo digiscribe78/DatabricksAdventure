@@ -9,11 +9,16 @@ const ARCHETYPES: { id: Archetype; label: string; blurb: string }[] = [
   { id: 'bard', label: 'Bard', blurb: 'Charm +3 · 14 HP · rapier, lute, letter of introduction' },
 ];
 
-export function TitleScreen({ onStart }: { onStart: (sessionId: string, newGame?: { name: string; archetype: Archetype }) => void }) {
+export function TitleScreen({ onStart, onTrack }: {
+  onStart: (sessionId: string, newGame?: { name: string; archetype: Archetype }) => void;
+  onTrack: (track: string) => void;
+}) {
   const [name, setName] = useState('');
   const [archetype, setArchetype] = useState<Archetype>('warrior');
   const [saves, setSaves] = useState<Adventure[] | null>(null);
   const [error, setError] = useState<string>();
+
+  useEffect(() => { onTrack('title'); }, [onTrack]);
 
   useEffect(() => {
     listAdventures().then(setSaves).catch((e: Error) => setError(e.message));
