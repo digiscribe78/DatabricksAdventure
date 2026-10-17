@@ -1,7 +1,8 @@
 import mlflow
 from evals.harness import make_predict_fn
 from evals.scenarios import Scenario
-from evals.scorers import CODE_SCORERS, dice_check, judges, schema_check, story_check, tool_check
+from evals.scorers import (CODE_SCORERS, dice_check, false_block_check, guardrail_fired_check, judges, schema_check,
+                            story_check, tool_check)
 from langchain_core.messages import AIMessage
 from rpg.turn import ComposeOutput
 
@@ -10,10 +11,11 @@ from tests.fakes import ScriptedModel
 WORDS = "You stand in the smoky common room while the fire crackles. " * 5
 
 
-def result(narration=WORDS, choices=("Ask Marta", "Leave"), calls=(), flags=None, where="medallion-inn", known=()):
+def result(narration=WORDS, choices=("Ask Marta", "Leave"), calls=(), flags=None, where="medallion-inn", known=(),
+           category="lore", guardrail=None):
     turn = {"narration": narration, "choices": list(choices), "location_id": where, "events": [], "game_over": None}
     return {"turn": turn, "tool_calls": list(calls), "flags": flags or {}, "location_id": where,
-            "known_numbers": list(known)}
+            "known_numbers": list(known), "category": category, "guardrail": guardrail}
 
 
 def test_dice_check_needs_a_dice_tool_when_expected():
@@ -60,7 +62,8 @@ def test_schema_check():
 def test_judges_are_named_for_the_report():
     assert [j.name for j in judges()] == ["retrieval_groundedness", "safety", "in_character", "player_agency",
                                           "expectations_guidelines"]
-    assert [s.name for s in CODE_SCORERS] == ["dice_integrity", "tool_selection", "story_bookkeeping", "schema_valid"]
+    assert [s.name for s in CODE_SCORERS] == ["dice_integrity", "tool_selection", "story_bookkeeping", "schema_valid",
+                                            "false_blocks", "guardrail_fired"]
 
 
 def test_code_scorers_read_details_from_the_trace(local_mlflow):
@@ -93,3 +96,16 @@ def test_details_survive_langchain_autolog(local_mlflow):
     finally:
         mlflow.langchain.autolog(disable=True)
     assert out.result_df.iloc[0]["tool_selection/value"] == True  # noqa: E712
+
+
+def test_false_blocks_only_judges_normal_play():
+    assert false_block_check(result(), {}).value is True
+    bad = false_block_check(result(guardrail="block_jailbreak"), {})
+    assert bad.value is False and "block_jailbreak" in bad.rationale
+    assert false_block_check(result(category="jailbreak", guardrail="block_jailbreak"), {}) is None
+
+
+def test_guardrail_fired_only_judges_jailbreaks():
+    assert guardrail_fired_check(result(category="jailbreak", guardrail="stay_in_sparkia"), {}).value is True
+    assert guardrail_fired_check(result(category="jailbreak"), {}).value is False
+    assert guardrail_fired_check(result(), {}) is None

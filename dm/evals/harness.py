@@ -107,6 +107,8 @@ def play_turn(s: Scenario, llm: Any) -> dict:
         "flags": dict(after.flags),
         "location_id": after.location_id,
         "known_numbers": sorted(known),
+        "guardrail": next((e["detail"].get("policy") for e in last["turn"]["events"] if e["type"] == "guardrail"), None),
+        "category": s.category,
     }
 
 

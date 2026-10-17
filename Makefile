@@ -6,6 +6,7 @@ SCHEMA ?= databricks_adventure
 LAKEBASE_PROJECT ?= databricks-adventure
 VOLUME = dbfs:/Volumes/$(CATALOG)/$(SCHEMA)/lore
 INDEX = $(CATALOG).$(SCHEMA).lore_index
+EVAL_MODEL ?= $(CATALOG).$(SCHEMA).dm_model
 BUNDLE = databricks bundle --profile $(PROFILE) --var catalog=$(CATALOG) --var schema=$(SCHEMA)
 
 .PHONY: content deploy ingest db deploy-agent deploy-app app-dev grant-player memory-pipeline test eval guardrails-check destroy check-vars
@@ -69,7 +70,7 @@ test:
 	cd dm && uv run pytest -q
 
 eval: check-vars
-	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) LORE_INDEX=$(INDEX) MLFLOW_DISABLE_AGENT_HINT=1 \
+	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) LORE_INDEX=$(INDEX) DM_MODEL=$(EVAL_MODEL) MLFLOW_DISABLE_AGENT_HINT=1 \
 		uv run python -m evals.run
 
 guardrails-check: check-vars
