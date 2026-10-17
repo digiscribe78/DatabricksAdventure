@@ -98,6 +98,14 @@ def _client_session_id(payload: dict[str, Any]) -> str | None:
     return ref
 
 
+def _hint(game) -> dict | None:
+    try:
+        return next_hint(dict(game.flags), game.location_id)
+    except Exception:  # noqa: BLE001 - a broken hints file costs the hint, never the turn
+        logger.warning("working out the hint failed", exc_info=True)
+        return None
+
+
 def game_snapshot(game) -> dict:
     """What the browser may see: no NPC secrets, no lore, no drafts."""
     here = LOCATIONS[game.location_id]
@@ -112,7 +120,7 @@ def game_snapshot(game) -> dict:
         "flags": dict(game.flags),
         "npcs": [{"npc_id": n.npc_id, "name": n.name, "disposition": n.disposition} for n in game.npcs],
         "traces_url": f"https://{host}/ml/experiments/{exp}/traces" if host and exp else None,
-        "hint": next_hint(dict(game.flags), game.location_id),
+        "hint": _hint(game),
     }
 
 
@@ -185,12 +193,15 @@ def turn_counts(turn: dict, hints_seen: Any) -> dict[str, int]:
     return counts
 
 
-def _read_stats(session_id: str) -> dict | None:
+_UNREAD = object()  # the stats read failed, as opposed to there being no row yet
+
+
+def _read_stats(session_id: str):
     try:
         return agent_module.game_store().stats(session_id)
     except Exception:  # noqa: BLE001 - the end-screen counts are a bonus, the turn is not
         logger.warning("reading adventure stats failed", exc_info=True)
-        return None
+        return _UNREAD
 
 
 def _add_stats(session_id: str, counts: dict[str, int]) -> None:
@@ -275,8 +286,12 @@ async def _invoke_agent(
     counts = turn_counts(turn, payload.get("hints_seen")) if turn is not None else None
     if snapshot is not None:
         stats = _read_stats(session_id)
-        if stats is not None and counts is not None:
+        if stats is _UNREAD:
+            stats = None
+        elif stats is not None and counts is not None:
             stats = {k: (v + counts.get(k, 0) if k in counts else v) for k, v in stats.items()}  # include this turn
+        elif counts is not None:
+            stats = {**counts, "since_start": False}  # a save from before stats: its row is created below
         snapshot["stats"] = stats
         await context.emit({"type": "game", "game": snapshot})
     if turn is not None:

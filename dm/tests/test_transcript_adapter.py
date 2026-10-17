@@ -147,3 +147,25 @@ async def test_a_stats_read_failure_never_breaks_the_turn(mem_store, recorded, m
     monkeypatch.setattr(mem_store, "stats", lambda *a: (_ for _ in ()).throw(ConnectionError("down")))
     result = await adapter.invoke({"messages": [{"role": "user", "content": "I look."}]}, ctx())
     assert result["game"]["stats"] is None and result["turn"]["narration"] == TURN["narration"]
+
+
+@pytest.mark.asyncio
+async def test_a_pre_m8_save_ending_on_its_first_turn_still_gets_a_recap(mem_store, recorded, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+    mem_store._adventures["s-t"].pop("stats")  # a save from before M8
+    monkeypatch.setattr(adapter, "run_agent", fake_run({**TURN, "game_over": "victory", "events": [{"type": "lore", "summary": "x"}]}))
+    result = await adapter.invoke({"messages": [{"role": "user", "content": "I win."}]}, ctx())
+    assert result["game"]["stats"]["lore"] == 1 and result["game"]["stats"]["since_start"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_broken_hints_file_never_breaks_the_turn(mem_store, recorded, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+    monkeypatch.setattr(adapter, "run_agent", fake_run(TURN))
+    monkeypatch.setattr(adapter, "next_hint", lambda *a: (_ for _ in ()).throw(KeyError("vowed_to_find_aldric")))
+    result = await adapter.invoke({"messages": [{"role": "user", "content": "I look."}]}, ctx())
+    assert result["game"]["hint"] is None and result["turn"]["narration"] == TURN["narration"]

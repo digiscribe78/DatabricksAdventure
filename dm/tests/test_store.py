@@ -115,24 +115,24 @@ def test_npc_reveal_after_round_trips(store, sid):
     assert card.reveal_after == "has_catalog"
 
 
-def test_stats_start_at_zero_and_add_up():
-    from rpg.store import STAT_KEYS, InMemoryStore
+def test_stats_start_at_zero_and_add_up(store, sid):
+    from rpg.store import STAT_KEYS
 
-    s = InMemoryStore()
-    s.create_adventure("a1", "p1", "Tess", "warrior")
-    assert s.stats("a1") == {**{k: 0 for k in STAT_KEYS}, "since_start": True}
-    s.add_stats("a1", {"lore": 2, "turns": 1})
-    s.add_stats("a1", {"lore": 1, "rolls": 1, "turns": 1, "bogus": 9})
-    st = s.stats("a1")
+    store.create_adventure(sid, "p1", "Tess", "warrior")
+    assert store.stats(sid) == {**{k: 0 for k in STAT_KEYS}, "since_start": True}
+    store.add_stats(sid, {"lore": 2, "turns": 1})
+    store.add_stats(sid, {"lore": 1, "rolls": 1, "turns": 1, "bogus": 9})
+    st = store.stats(sid)
     assert (st["lore"], st["rolls"], st["turns"]) == (3, 1, 2) and "bogus" not in st
 
 
-def test_a_save_from_before_stats_counts_from_now():
-    from rpg.store import InMemoryStore
-
-    s = InMemoryStore()
-    s.create_adventure("old", "p1", "Tess", "warrior")
-    s._adventures["old"].pop("stats")  # as if created before M8
-    assert s.stats("old") is None
-    s.add_stats("old", {"turns": 1})
-    assert s.stats("old")["turns"] == 1 and s.stats("old")["since_start"] is False
+def test_a_save_from_before_stats_counts_from_now(store, sid):
+    store.create_adventure(sid, "p1", "Tess", "warrior")
+    if isinstance(store, InMemoryStore):
+        store._adventures[sid].pop("stats")  # as if created before M8
+    else:
+        with store._connect() as conn:
+            conn.execute("DELETE FROM rpg.adventure_stats WHERE adventure_id = %s", (sid,))
+    assert store.stats(sid) is None
+    store.add_stats(sid, {"turns": 1})
+    assert store.stats(sid)["turns"] == 1 and store.stats(sid)["since_start"] is False

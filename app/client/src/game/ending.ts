@@ -20,7 +20,8 @@ export function endSummary(game: GameSnapshot, outcome: string) {
 export function recapLines(s: Stats) {
   const lines: { glyph: string; text: string; page: string }[] = [];
   const tools = s.rolls + s.attacks;
-  if (tools) lines.push({ glyph: '🎲', text: `${plural(tools, 'tool call', 'tool calls')} (${plural(s.rolls, 'dice roll', 'dice rolls')}, ${plural(s.attacks, 'attack', 'attacks')})`, page: 'tools' });
+  // Only the dice and combat tools: lore lookups are tool calls too, and get their own line.
+  if (tools) lines.push({ glyph: '🎲', text: `${plural(tools, 'dice and combat roll', 'dice and combat rolls')} (${plural(s.rolls, 'check', 'checks')}, ${plural(s.attacks, 'attack', 'attacks')})`, page: 'tools' });
   if (s.lore) lines.push({ glyph: '📚', text: plural(s.lore, 'lore lookup', 'lore lookups'), page: 'rag' });
   if (s.memories) lines.push({ glyph: '🧠', text: plural(s.memories, 'memory recall', 'memory recalls'), page: 'memory' });
   if (s.state_commits) lines.push({ glyph: '💾', text: plural(s.state_commits, 'state commit', 'state commits'), page: 'state' });

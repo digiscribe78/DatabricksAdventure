@@ -25,7 +25,7 @@ describe('recapLines', () => {
   it('lists only what happened, each pointing at its Guide page', () => {
     const lines = recapLines({ rolls: 3, attacks: 2, lore: 9, memories: 0, state_commits: 4, guardrails: 1, hints: 1, turns: 20, since_start: true });
     expect(lines.map((l) => l.page)).toEqual(['tools', 'rag', 'state', 'guardrails', 'hints']);
-    expect(lines[0]).toEqual({ glyph: '🎲', text: '5 tool calls (3 dice rolls, 2 attacks)', page: 'tools' });
+    expect(lines[0]).toEqual({ glyph: '🎲', text: '5 dice and combat rolls (3 checks, 2 attacks)', page: 'tools' });
     expect(lines[1].text).toBe('9 lore lookups');
   });
 });
