@@ -11,6 +11,7 @@ describe('revealHint', () => {
     expect(one.hintTier).toBe(1);
     expect(one.events.at(-1)).toEqual({ type: 'hint', summary: 'Hint from game state: next beat spoke_with_aldric at The Unity Archive' });
     const two = revealHint(one);
+    expect(two.events.at(-1)?.summary).toBe('Clearer hint from game state: next beat spoke_with_aldric at The Unity Archive');
     expect(two.hintTier).toBe(2);
     expect(two.hintsSeen).toBe(2);
     expect(revealHint(two).hintTier).toBe(2);  // no third tier
