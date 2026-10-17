@@ -14,6 +14,7 @@ const ErrorBody = z.object({ error: z.string() });
 
 export interface TurnRequest {
   message?: string;
+  hintsSeen?: number;
   newGame?: { name: string; archetype: 'warrior' | 'mage' | 'bard' };
 }
 

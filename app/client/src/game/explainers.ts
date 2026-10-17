@@ -13,6 +13,7 @@ export const EXPLAINERS: Record<string, Explainer> = {
   memory: { title: 'Long-term memory', text: 'Facts about you that outlive a single adventure, stored in a managed memory store and recalled when a new adventure begins.', docs: `${AGENTS}custom-agents/stateful-agents` },
   state: { title: 'State commit', text: 'Tools staged changes during the turn; they were written to Lakebase in a single transaction at the end, so the world never half-updates.', docs: 'https://docs.databricks.com/aws/en/oltp/' },
   guardrail: { title: 'Guardrail', text: 'A Unity AI Gateway service policy screened the model call and blocked it. The DM refused in-world and never saw the blocked words again; no game state from the turn was saved.', docs: 'https://docs.databricks.com/aws/en/data-governance/unity-catalog/service-policies' },
+  hint: { title: 'Hint', text: 'Hints are worked out by code from the campaign state (the next unfinished story beat), not by the model: always right, free, and they never use a turn.', docs: 'https://docs.databricks.com/aws/en/oltp/' },
   load_state: { title: 'load_state', text: 'Load your save from Lakebase and recall memories before the DM thinks.', docs: 'https://docs.databricks.com/aws/en/oltp/' },
   dm_reason: { title: 'dm_reason', text: 'The model reasons about your action and decides which tools to call.', docs: AGENTS },
   tools: { title: 'tools', text: 'The requested tools run: dice, lore search, state changes.', docs: `${AGENTS}mcp-tools/` },
@@ -21,4 +22,4 @@ export const EXPLAINERS: Record<string, Explainer> = {
 };
 
 export const GRAPH = ['load_state', 'dm_reason', 'tools', 'commit_state', 'compose'];
-export const GLYPHS: Record<string, string> = { roll: '🎲', attack: '⚔️', lore: '📚', memory: '🧠', state: '💾', guardrail: '🛡' };
+export const GLYPHS: Record<string, string> = { roll: '🎲', attack: '⚔️', lore: '📚', memory: '🧠', state: '💾', guardrail: '🛡', hint: '💡' };

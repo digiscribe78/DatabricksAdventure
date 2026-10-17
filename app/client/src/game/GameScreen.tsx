@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { playTurn, type TurnRequest } from './api';
 import { trackFor } from './music';
 import { inlineParts } from './format';
+import { revealHint } from './hints';
 import { ScryingGlass } from './ScryingGlass';
 import { sceneImage } from './scene';
 import { applyEvent, canAct, failTurn, newView, startTurn, type GameView } from './state';
@@ -44,7 +45,7 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
     const m = msg.trim();
     if (!m || !canAct(view)) return;
     setText('');
-    void send({ message: m }, m);
+    void send({ message: m, hintsSeen: view.hintsSeen || undefined }, m);
   };
 
   const c = view.game?.character;
@@ -87,6 +88,20 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
           </div>
           <input className="parchment-input" value={text} disabled={!canAct(view)} placeholder={view.busy ? 'The DM ponders…' : '…or type what you do'}
                  onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && act(text)} />
+          {view.game?.hint && canAct(view) && (
+            <div className="hint-row">
+              <button className="bbtn inline" onClick={() => setView((v) => revealHint(v))}>💡 Hint</button>
+              {view.hintTier > 0 && (
+                <div className="hint-box">
+                  <p>💡 {view.game.hint.nudge}</p>
+                  {view.hintTier === 2 && <p>{view.game.hint.clearer}</p>}
+                  {view.hintTier === 1 && (
+                    <button className="bbtn inline" onClick={() => setView((v) => revealHint(v))}>Clearer hint ▸</button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
       <div className="side">
