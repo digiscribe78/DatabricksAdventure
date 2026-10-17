@@ -103,6 +103,20 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 .archetypes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .begin { text-align: center; margin-top: 12px; }
 .game-screen { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 12px; align-items: start; }
+/* Wide screens: the story column fits the window. The narration scrolls inside it, so the choices
+   and the text box stay on screen; the Glass and the character sheet share the right column. */
+@media (min-width: 901px) {
+  .game-screen { height: calc(100vh - 28px); align-items: stretch; }
+  .story { display: flex; flex-direction: column; min-height: 0; }
+  .story .bview { aspect-ratio: auto; height: 32vh; min-height: 150px; }  /* a wide crop of the 16:9 art */
+  .story .narration { flex: 1 1 auto; min-height: 120px; overflow-y: auto; overflow-anchor: none; }
+  .story .actions { flex: 0 0 auto; margin-bottom: 0; }
+  .story .actions .choices { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; }  /* two to a row leaves the story more room */
+  .story .actions .bbtn { margin: 4px 0; }
+  .side { display: flex; flex-direction: column; min-height: 0; }
+  .side .bscry { position: static; flex: 0 1 auto; min-height: 0; max-height: none; }
+  .side .sheet { flex: 0 0 auto; margin-bottom: 0; }
+}
 .bview { position: relative; aspect-ratio: 16 / 9; overflow: hidden; display: flex; align-items: flex-end; padding: 8px; color: #fff; text-shadow: 1px 1px 2px #000;
          background: linear-gradient(160deg, #41306b, #c2643c 60%, #f2c46b); }
 .bview[data-location='delta-crossing'] { background: linear-gradient(170deg, #1e2a4a, #2f5d6b 55%, #9fc3c9); }
@@ -112,7 +126,7 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 .pending { opacity: 0.7; font-style: italic; }
 .warn { color: #ffb38a; }
 .game-over { text-align: center; color: var(--gold-hi); font-family: 'Press Start 2P', monospace; font-size: 12px; }
-.sheet { font-size: 18px; position: relative; }
+.sheet { font-size: 18px; position: relative; padding-right: 100px; }  /* room for the Leave button */
 .sheet .hp { color: #e0605a; letter-spacing: -1px; }
 .sheet .pack { opacity: 0.85; margin-top: 4px; }
 .sheet .quit { position: absolute; right: 8px; top: 6px; }
