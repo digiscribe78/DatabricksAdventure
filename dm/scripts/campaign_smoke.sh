@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
-# Plays Act 1 against the deployed DM and probes a story gate. Prints location and flags per turn.
+# Plays Act 1 against the deployed DM and probes a story gate. Prints location and flags per turn,
+# and exits non-zero if the gate lets the player skip ahead.
 set -euo pipefail
 BASE="${1:?usage: campaign_smoke.sh <dm-url>}"
-TOKEN="${TOKEN:?set TOKEN=$(databricks auth token -p <profile> | jq -r .access_token)}"
+if [ -z "${TOKEN:-}" ]; then
+  echo 'Set TOKEN first: export TOKEN=$(databricks auth token -p <profile> | jq -r .access_token)' >&2
+  exit 2
+fi
 SESSION=$(uuidgen)
+LAST=$(mktemp)
+trap 'rm -f "$LAST"' EXIT
 turn() {
   local input="$1"
   jq -n --arg id "$(uuidgen)" --arg s "$SESSION" --argjson input "$input" '{id:$id, session_id:$s, input:$input}' |
-    curl -sS --fail "$BASE/api/invocations" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @- |
-    jq -r '"📍 " + .output.game.location_id + "  flags=" + (.output.game.flags | keys | join(",")) + "  open=" + ([.output.game.exits[] | select(.open) | .id] | join(",")),
-           (.output.turn.events[] | "  " + .type + ": " + .summary)'
+    curl -sS --fail "$BASE/api/invocations" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @- > "$LAST"
+  jq -r '"📍 " + .output.game.location_id + "  flags=" + (.output.game.flags | keys | join(",")) + "  open=" + ([.output.game.exits[] | select(.open) | .id] | join(",")),
+           (.output.turn.events[] | "  " + .type + ": " + .summary)' "$LAST"
 }
+location() { jq -r .output.game.location_id "$LAST"; }
 msg() { jq -n --arg c "$1" '{messages:[{role:"user", content:$c}]}'; }
 echo "--- new game"; turn '{"messages":[],"new_game":{"name":"Tess","archetype":"warrior"}}'
 echo "--- vow";      turn "$(msg 'I promise Marta I will find Keeper Aldric.')"
 echo "--- to delta"; turn "$(msg 'I head out to the Delta Crossing.')"
 echo "--- archive";  turn "$(msg 'I take the road upriver to the Unity Archive.')"
 echo "--- gate probe: straight to the Forge"; turn "$(msg 'Without waiting, I march straight off to the Spark Forge.')"
+if [ "$(location)" = "spark-forge" ]; then
+  echo "FAIL: the Forge road should be barred until Aldric speaks, but the player reached the Forge" >&2
+  exit 1
+fi
 echo "--- doors";    turn "$(msg 'I knock on the bronze doors and call out for Keeper Aldric.')"
 echo "CAMPAIGN SMOKE DONE (session $SESSION)"
