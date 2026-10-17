@@ -103,3 +103,47 @@ async def test_a_slow_distil_gives_up_rather_than_holding_the_ending(mem_store, 
     started = time.monotonic()
     result = await adapter.invoke({"messages": [{"role": "user", "content": "I fall."}]}, ctx())
     assert result["game"]["distilled"] == [] and time.monotonic() - started < 1.5
+
+
+def test_turn_counts_by_event_type_with_hints():
+    from runtime.adapter import turn_counts
+
+    turn = {**TURN, "events": [{"type": "roll"}, {"type": "lore"}, {"type": "lore"}, {"type": "state"}, {"type": "guardrail"}]}
+    assert turn_counts(turn, 2) == {"rolls": 1, "attacks": 0, "lore": 2, "memories": 0, "state_commits": 1,
+                                    "guardrails": 1, "hints": 2, "turns": 1}
+    for bad in ("3", -1, 99, None, 2.5):
+        assert turn_counts(TURN, bad)["hints"] == 0
+
+
+@pytest.mark.asyncio
+async def test_snapshot_carries_hint_and_stats_including_this_turn(mem_store, recorded, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+    monkeypatch.setattr(adapter, "run_agent", fake_run({**TURN, "events": [{"type": "lore", "summary": "x"}]}))
+    result = await adapter.invoke({"messages": [{"role": "user", "content": "I look."}], "hints_seen": 1}, ctx())
+    assert result["game"]["hint"]["beat"] == "vowed_to_find_aldric"
+    assert (result["game"]["stats"]["lore"], result["game"]["stats"]["hints"], result["game"]["stats"]["turns"]) == (1, 1, 1)
+    assert mem_store.stats("s-t")["lore"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_stats_failure_never_breaks_the_turn(mem_store, recorded, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+    monkeypatch.setattr(adapter, "run_agent", fake_run(TURN))
+    monkeypatch.setattr(mem_store, "add_stats", lambda *a: (_ for _ in ()).throw(ConnectionError("down")))
+    result = await adapter.invoke({"messages": [{"role": "user", "content": "I look."}]}, ctx())
+    assert result["turn"]["narration"] == TURN["narration"]
+
+
+@pytest.mark.asyncio
+async def test_a_stats_read_failure_never_breaks_the_turn(mem_store, recorded, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+    monkeypatch.setattr(adapter, "run_agent", fake_run(TURN))
+    monkeypatch.setattr(mem_store, "stats", lambda *a: (_ for _ in ()).throw(ConnectionError("down")))
+    result = await adapter.invoke({"messages": [{"role": "user", "content": "I look."}]}, ctx())
+    assert result["game"]["stats"] is None and result["turn"]["narration"] == TURN["narration"]

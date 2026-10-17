@@ -1,6 +1,7 @@
 """Translate between Agent Bricks invocations and the framework-native agent entrypoint."""
 
 import asyncio
+import logging
 import os
 import re
 
@@ -18,8 +19,12 @@ from databricks_agentkit import InvocationContext
 from databricks_agentkit.langgraph.responses import checkpointed_messages
 from databricks_agentkit.langgraph.session_store import thread_config
 from databricks_agentkit.runtime.auth import AuthError
+from rpg.hints import next_hint
+from rpg.store import STAT_KEYS
 from rpg.world import LOCATIONS
 
+
+logger = logging.getLogger(__name__)
 
 def _payload(value: Any) -> dict[str, Any]:
     if isinstance(value, list):
@@ -107,6 +112,7 @@ def game_snapshot(game) -> dict:
         "flags": dict(game.flags),
         "npcs": [{"npc_id": n.npc_id, "name": n.name, "disposition": n.disposition} for n in game.npcs],
         "traces_url": f"https://{host}/ml/experiments/{exp}/traces" if host and exp else None,
+        "hint": next_hint(dict(game.flags), game.location_id),
     }
 
 
@@ -161,6 +167,37 @@ def _check_user_input(payload: dict[str, Any], context: InvocationContext) -> No
             "Request-user invocations do not support approval or resume input.",
             400,
         )
+
+
+_EVENT_STATS = {"roll": "rolls", "attack": "attacks", "lore": "lore", "memory": "memories",
+                "state": "state_commits", "guardrail": "guardrails"}
+
+
+def turn_counts(turn: dict, hints_seen: Any) -> dict[str, int]:
+    """This turn's contribution to the adventure's "what you just saw" counts."""
+    counts = dict.fromkeys(STAT_KEYS, 0)
+    for e in turn.get("events") or []:
+        if (key := _EVENT_STATS.get(e.get("type"))) is not None:
+            counts[key] += 1
+    ok = isinstance(hints_seen, int) and not isinstance(hints_seen, bool) and 0 <= hints_seen <= 20
+    counts["hints"] = hints_seen if ok else 0
+    counts["turns"] = 1
+    return counts
+
+
+def _read_stats(session_id: str) -> dict | None:
+    try:
+        return agent_module.game_store().stats(session_id)
+    except Exception:  # noqa: BLE001 - the end-screen counts are a bonus, the turn is not
+        logger.warning("reading adventure stats failed", exc_info=True)
+        return None
+
+
+def _add_stats(session_id: str, counts: dict[str, int]) -> None:
+    try:
+        agent_module.game_store().add_stats(session_id, counts)
+    except Exception:  # noqa: BLE001 - stats never break the turn
+        logger.warning("recording adventure stats failed", exc_info=True)
 
 
 DISTIL_TIMEOUT_S = 20.0  # the ending never waits longer than this for the platform to distil it
@@ -235,10 +272,16 @@ async def _invoke_agent(
 
     game = agent_module.game_store().load(session_id)
     snapshot = game_snapshot(game) if game is not None else None
+    counts = turn_counts(turn, payload.get("hints_seen")) if turn is not None else None
     if snapshot is not None:
+        stats = _read_stats(session_id)
+        if stats is not None and counts is not None:
+            stats = {k: (v + counts.get(k, 0) if k in counts else v) for k, v in stats.items()}  # include this turn
+        snapshot["stats"] = stats
         await context.emit({"type": "game", "game": snapshot})
     if turn is not None:
-        # After the player has the new state: blocking SDK calls, so off the event loop.
+        # After the player has the new state: blocking calls, so off the event loop.
+        await asyncio.to_thread(_add_stats, session_id, counts)
         await asyncio.to_thread(record_turn, actor, session_id, *turn_transcript(agent_input, turn),
                                 context.invocation_id)
         if snapshot is not None and turn.get("game_over"):

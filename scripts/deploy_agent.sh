@@ -19,6 +19,7 @@ TRANSCRIPTS=$(uv run python -c "from agent.transcripts import transcript_store_n
 uv run python -m devtools.build "$ROOT/dm" "$OUT" \
   "MLFLOW_TRACING_SQL_WAREHOUSE_ID=$WAREHOUSE" "LORE_INDEX=$CATALOG.$SCHEMA.lore_index" "LAKEBASE_ENDPOINT=$EP" "DM_MODEL=$CATALOG.$SCHEMA.dm_model" "TRANSCRIPT_STORE=$TRANSCRIPTS"
 cp "$ROOT/content/dreamer-instructions.md" "$OUT/dreamer-instructions.md"
+cp "$ROOT/content/hints.yaml" "$OUT/hints.yaml"
 (cd "$OUT" && agentbricks --profile "$PROFILE" deploy dm --allow-user-scope-update)
 LB_ENV=$("$ROOT/scripts/lakebase_env.sh" "$PROFILE")  # assigned first so a failure trips set -e
 eval "$LB_ENV"

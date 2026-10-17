@@ -31,6 +31,10 @@ describe('invocationBody', () => {
     const b = invocationBody({ message: 'I wade in' }, 'sess-1', true);
     expect(b.input).toEqual({ messages: [{ role: 'user', content: 'I wade in' }] });
   });
+  it('passes the hints seen since the last turn', () => {
+    const b = invocationBody({ message: 'I look', hintsSeen: 2 }, 'sess-1', true);
+    expect(b.input).toEqual({ messages: [{ role: 'user', content: 'I look' }], hints_seen: 2 });
+  });
   it('builds a list request', () => {
     const b = invocationBody({ listAdventures: true }, 'lst', false);
     expect(b.input).toEqual({ list_adventures: true });
