@@ -24,7 +24,8 @@ destroy it when you're done.
 
 `make deploy` finishes by deploying the game app, **databricks-adventure**. Open it from the
 Databricks Apps page. Each player needs `CAN_USE` on both apps: `make grant-player PROFILE=…
-PLAYER=someone@example.com`. For local UI work, run `make app-dev PROFILE=…`, which talks to the
+PLAYER=someone@example.com`. In the game, **💡 Hint** suggests what to do next (worked out from the story state, not the model), the
+**📖 Guide** explains each concept, and the end screen shows what you saw, counted in Lakebase. For local UI work, run `make app-dev PROFILE=…`, which talks to the
 deployed DM with your own token.
 
 `make eval PROFILE=… CATALOG=…` plays the eval scenarios against the DM and prints its report card

@@ -1,7 +1,7 @@
 # Databricks Adventure: M8 The Learning Layer (Hints, End Screen, Guide)
 
 - **Date:** 2026-10-17
-- **Status:** Draft for review; to be implemented in M8
+- **Status:** Approved; implemented in M8
 - **Parent spec:** `2026-10-16-databricks-rpg-design.md` §9 items 4 (end screen) and the concepts guide; §15 step 7. This document refines them; where they differ, this one wins.
 - **Design rule:** persistent application state lives in Lakebase, not the browser. The browser holds only transient UI.
 
