@@ -1,7 +1,7 @@
 # Databricks Adventure: M5b Memory That Learns From Play
 
 - **Date:** 2026-10-17
-- **Status:** Draft for review; to be implemented in M5b
+- **Status:** Approved; implemented in M5b
 - **Parent spec:** `2026-10-16-databricks-rpg-design.md` §7 (state and memory). This refines M3b's memory wiring; where they differ, this one wins.
 - **Platform reference:** Databricks docs, "Stateful agents" and "Tutorial: Add sessions and memory to an existing agent" (Agent Bricks sessions and memory, Beta).
 
@@ -89,7 +89,17 @@ A pipeline's session store can't be changed with `update`, so any existing pipel
   5. `agentbricks memory pipeline run` on the new pipeline completes.
   6. A new game's first turn shows 🧠 recalling a distilled memory.
 
-## 8. Out of scope
+## 8. Live results (2026-10-17)
+
+- **Transcripts:** a smoke game wrote 13 plain items: the opening narration, a user and assistant pair per turn, and the jailbreak turn as the placeholder.
+- **Dreamer:** a manual run distilled a new memory from the transcript, "Plays a character named Tess… Promised Marta Quill… now trusts Tess more", and a new game's opening recalled it ("recalled 2 things about you").
+  - The run's API `stats` reported zeros, but the job logs showed `actors_processed: 1, entries_written: 1`. The job logs are the source of truth.
+- **End-of-game extraction** (`extract_memories`) currently fails on this workspace with `ai-gateway upstream error status 403`, even on a two-message test session.
+  - The service calls a fixed model (`system.ai.claude-sonnet-5`) through AI Gateway, and the same user can query that model directly.
+  - So the failure is inside the extraction service, not our access. The code logs it and returns `[]`, so finished adventures are distilled by the next Dreamer run instead.
+  - It is kept as-is so it starts working when the service does.
+
+## 9. Out of scope
 
 - The end-screen UI for `distilled` (M8).
 - Backfilling transcripts for past games: their checkpoints can't be read as messages.
