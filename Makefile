@@ -8,7 +8,7 @@ VOLUME = dbfs:/Volumes/$(CATALOG)/$(SCHEMA)/lore
 INDEX = $(CATALOG).$(SCHEMA).lore_index
 BUNDLE = databricks bundle --profile $(PROFILE) --var catalog=$(CATALOG) --var schema=$(SCHEMA)
 
-.PHONY: content deploy ingest db deploy-agent memory-pipeline test destroy check-vars
+.PHONY: content deploy ingest db deploy-agent deploy-app app-dev grant-player memory-pipeline test destroy check-vars
 
 check-vars:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
@@ -25,6 +25,7 @@ deploy: check-vars content
 	$(MAKE) ingest PROFILE=$(PROFILE) CATALOG=$(CATALOG) SCHEMA=$(SCHEMA)
 	@echo "Lore index ready: $(INDEX). Put LORE_INDEX=$(INDEX) in dm/.env"
 	$(MAKE) deploy-agent PROFILE=$(PROFILE) CATALOG=$(CATALOG) SCHEMA=$(SCHEMA)
+	$(MAKE) deploy-app PROFILE=$(PROFILE)
 
 ingest: check-vars
 	$(BUNDLE) run ingest_lore
@@ -45,11 +46,30 @@ memory-pipeline:
 	 agentbricks --profile $(PROFILE) memory pipeline create --memory-store $$STORE --session-store $$SESS \
 	   --display-name dm-dreamer --instructions @../content/dreamer-instructions.md --trigger manual)
 
+deploy-app:
+	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
+	cd app && npm install --no-audit --no-fund && npm run build && \
+		databricks bundle deploy --profile $(PROFILE) && databricks bundle run app --profile $(PROFILE)
+
+app-dev:
+	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
+	printf 'DM_URL=%s\nDM_DEV_TOKEN=%s\n' \
+		"$$(databricks apps get agent-bricks-dm --profile $(PROFILE) -o json | jq -r .url)" \
+		"$$(databricks auth token --profile $(PROFILE) | jq -r .access_token)" > app/.env
+	cd app && npm run dev
+
+grant-player:
+	@test -n "$(PROFILE)" -a -n "$(PLAYER)" || (echo "Set PROFILE=… PLAYER=<user email>" && exit 1)
+	for a in databricks-adventure agent-bricks-dm; do \
+		databricks permissions update apps $$a --profile $(PROFILE) \
+		  --json "{\"access_control_list\":[{\"user_name\":\"$(PLAYER)\",\"permission_level\":\"CAN_USE\"}]}" >/dev/null && echo "granted $$a"; done
+
 test:
 	cd pipelines && uv run pytest -q
 	cd dm && uv run pytest -q
 
 destroy: check-vars
+	-cd app && databricks bundle destroy --auto-approve --profile $(PROFILE)
 	-agentbricks --profile $(PROFILE) deployments delete agent-bricks-dm --yes
 	-databricks vector-search-indexes delete-index --profile $(PROFILE) $(INDEX)
 	$(BUNDLE) destroy --auto-approve

@@ -19,6 +19,11 @@ Catalog. `make memory-pipeline PROFILE=…` creates a Dreamer pipeline for disti
 memories. `make destroy` removes it all. The AI Search endpoint bills while an index exists, so
 destroy it when you're done.
 
+`make deploy` finishes by deploying the game app, **databricks-adventure**. Open it from the
+Databricks Apps page. Each player needs `CAN_USE` on both apps: `make grant-player PROFILE=…
+PLAYER=someone@example.com`. For local UI work, run `make app-dev PROFILE=…`, which talks to the
+deployed DM with your own token.
+
 ## Licence
 
 [Apache-2.0](LICENSE)

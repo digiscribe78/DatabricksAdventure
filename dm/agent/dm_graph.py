@@ -24,7 +24,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
-from agent.prompts import COMPOSE_SYSTEM, OPENING_CUE, render_dm_system
+from agent.prompts import COMPOSE_SYSTEM, CONTINUE_CUE, OPENING_CUE, render_dm_system
 from rpg.state import GameState, apply_changes
 from rpg.store import GameStore
 from rpg.turn import ComposeOutput, TurnEvent, TurnOutput
@@ -213,7 +213,8 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         update = {**_game_update(game), "staged": None, "state_summaries": [], "commit_failed": False}
         messages = state.get("messages") or []
         if not messages or not isinstance(messages[-1], HumanMessage):
-            update["messages"] = [HumanMessage(OPENING_CUE)]
+            resumed = any(isinstance(m, HumanMessage) for m in messages)
+            update["messages"] = [HumanMessage(CONTINUE_CUE if resumed else OPENING_CUE)]
         if recall is not None and "memories" not in state:
             try:
                 pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)

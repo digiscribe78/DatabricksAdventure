@@ -1,5 +1,8 @@
 """Translate between Agent Bricks invocations and the framework-native agent entrypoint."""
 
+import os
+import re
+
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any
 
@@ -12,6 +15,7 @@ from databricks_agentkit import InvocationContext
 from databricks_agentkit.langgraph.responses import checkpointed_messages
 from databricks_agentkit.langgraph.session_store import thread_config
 from databricks_agentkit.runtime.auth import AuthError
+from rpg.world import LOCATIONS
 
 
 def _payload(value: Any) -> dict[str, Any]:
@@ -74,10 +78,39 @@ def _new_game(payload: dict[str, Any]) -> tuple[str, str] | None:
     return name.strip(), archetype
 
 
+_CLIENT_REF = re.compile(r"^[A-Za-z0-9-]{1,64}$")
+
+
+def _client_session_id(payload: dict[str, Any]) -> str | None:
+    ref = payload.get("client_session_id")
+    if ref is None:
+        return None
+    if not (isinstance(ref, str) and _CLIENT_REF.fullmatch(ref)):
+        raise ValueError("client_session_id must be 1-64 letters, digits or hyphens")
+    return ref
+
+
+def game_snapshot(game) -> dict:
+    """What the browser may see: no NPC secrets, no lore, no drafts."""
+    here = LOCATIONS[game.location_id]
+    host = os.getenv("DATABRICKS_HOST", "").removeprefix("https://").rstrip("/")
+    exp = os.getenv("MLFLOW_EXPERIMENT_ID")
+    return {
+        "character": game.character.model_dump(),
+        "location_id": game.location_id,
+        "location_name": here.name,
+        "exits": [{"id": e, "name": LOCATIONS[e].name} for e in here.exits if e in LOCATIONS],
+        "flags": dict(game.flags),
+        "npcs": [{"npc_id": n.npc_id, "name": n.name, "disposition": n.disposition} for n in game.npcs],
+        "traces_url": f"https://{host}/ml/experiments/{exp}/traces" if host and exp else None,
+    }
+
+
 def _ensure_adventure(payload: dict[str, Any], session_id: str, actor: str) -> None:
     """Create the adventure on new_game (idempotent for replays); otherwise require one to exist."""
     store = agent_module.game_store()
     new_game = _new_game(payload)
+    client_ref = _client_session_id(payload)
     owner = store.owner(session_id)
     if owner is not None and owner != actor:
         raise PermissionError("this adventure belongs to another player")
@@ -85,7 +118,7 @@ def _ensure_adventure(payload: dict[str, Any], session_id: str, actor: str) -> N
         return
     if new_game is None:
         raise ValueError("no adventure for this session: send new_game first")
-    store.create_adventure(session_id, actor, *new_game)
+    store.create_adventure(session_id, actor, *new_game, client_session_id=client_ref)
 
 
 async def invoke(value: Any, context: InvocationContext) -> dict:
@@ -134,6 +167,8 @@ async def _invoke_agent(
     session_id = _session_id(context)
     auth = getattr(context, "request_auth", None)
     actor = _player(payload, session_id, auth)
+    if payload.get("list_adventures") is True:
+        return {"adventures": agent_module.game_store().list_adventures(actor), "status": "completed"}
     _ensure_adventure(payload, session_id, actor)
     user_auth = auth is not None
     run_kwargs = {"workspace_client_for": auth.client_for} if user_auth else {}
@@ -172,10 +207,15 @@ async def _invoke_agent(
         if event.get("type") in ("message", "interrupt"):
             outputs.append(event)
 
+    game = agent_module.game_store().load(session_id)
+    snapshot = game_snapshot(game) if game is not None else None
+    if snapshot is not None:
+        await context.emit({"type": "game", "game": snapshot})
     interrupted = bool(outputs and outputs[-1].get("type") == "interrupt")
     return {
         "output": [event["message"] if event["type"] == "message" else event for event in outputs],
         "turn": turn,
+        "game": snapshot,
         "status": "interrupted" if interrupted else "completed",
     }
 

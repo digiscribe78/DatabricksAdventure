@@ -87,7 +87,7 @@ def test_list_and_delete(store, sid):
     store.create_adventure(sid, "player-list-test", "Elowen", "mage")
     listed = [a for a in store.list_adventures("player-list-test") if a["session_id"] == sid]
     assert listed == [{"session_id": sid, "name": "Elowen", "archetype": "mage",
-                       "location_id": "medallion-inn", "status": "active"}]
+                       "location_id": "medallion-inn", "status": "active", "client_session_id": None}]
     store.delete_adventure(sid)
     assert store.load(sid) is None
 
@@ -96,3 +96,9 @@ def test_owner_is_the_creating_player(store, sid):
     assert store.owner(sid) is None
     store.create_adventure(sid, "player-1", "Brannoc", "warrior")
     assert store.owner(sid) == "player-1"
+
+
+def test_client_session_id_is_stored_and_listed(store, sid):
+    store.create_adventure(sid, "player-ref-test", "Brannoc", "warrior", client_session_id="abc-123")
+    listed = [a for a in store.list_adventures("player-ref-test") if a["session_id"] == sid]
+    assert listed[0]["client_session_id"] == "abc-123"

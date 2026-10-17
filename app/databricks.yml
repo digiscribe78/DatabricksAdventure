@@ -1,0 +1,20 @@
+bundle:
+  name: databricks-adventure-app
+
+resources:
+  apps:
+    app:
+      name: databricks-adventure
+      description: "Databricks Adventure: a retro RPG whose Dungeon Master is an AI agent"
+      source_code_path: ./
+      lifecycle:
+        started: true
+      resources:
+        - name: dm
+          app:
+            name: agent-bricks-dm
+            permission: CAN_USE
+
+targets:
+  default:
+    default: true

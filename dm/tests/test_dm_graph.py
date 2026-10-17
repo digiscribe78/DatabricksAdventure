@@ -467,3 +467,15 @@ def test_slow_memory_recall_is_abandoned_within_budget(monkeypatch):
     turn = graph.invoke({"messages": []}, {"configurable": {"thread_id": "t1", "actor_id": "player-1"}})["turn"]
     assert time.monotonic() - started < 2
     assert turn["events"] == []
+
+
+def test_resuming_without_a_message_uses_the_continue_cue_not_the_opening():
+    from agent.prompts import CONTINUE_CUE, OPENING_CUE
+
+    model = ScriptedModel(replies=[AIMessage(content="ok"), AIMessage(content="ok")], structured=[PROSE, PROSE])
+    graph = make(model)
+    run(graph, None)          # new game: opening
+    run(graph, None)          # Continue: resume
+    first, second = model.reason_calls[0], model.reason_calls[1]
+    assert first[-1].content == OPENING_CUE
+    assert second[-1].content == CONTINUE_CUE

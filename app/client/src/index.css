@@ -1,0 +1,132 @@
+@import "@databricks/appkit-ui/styles.css";
+
+:root {
+  /* --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.21 0.006 285.885);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.603 0.135 166.892);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.795 0.157 78.748);
+  --warning-foreground: oklch(0.199 0.027 238.732);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.015 286.067);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.21 0.006 285.885);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.705 0.015 286.067); */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* --background: oklch(0.141 0.005 285.823);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.21 0.006 285.885);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.21 0.006 285.885);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.92 0.004 286.32);
+    --primary-foreground: oklch(0.21 0.006 285.885);
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.274 0.006 286.033);
+    --muted-foreground: oklch(0.705 0.015 286.067);
+    --accent: oklch(0.274 0.006 286.033);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --destructive-foreground: oklch(0.985 0 0);
+    --success: oklch(0.67 0.12 167);
+    --success-foreground: oklch(1 0 0);
+    --warning: oklch(0.83 0.165 85);
+    --warning-foreground: oklch(0.199 0.027 238.732);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.552 0.016 285.938);
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+    --sidebar: oklch(0.21 0.006 285.885);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.274 0.006 286.033);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.552 0.016 285.938); */
+  }
+}
+
+/* ---- Databricks Adventure: modern-retro style B ---- */
+:root { --gold: #c8a24a; --gold-hi: #f2c46b; --ink: #1b1424; --night: #120d18; --parchment: #eadfc8; --glass: #b9a8ff; }
+html, body, #root { height: 100%; margin: 0; background: var(--ink); }
+.b { font-family: 'VT323', monospace; font-size: 20px; line-height: 1.25; color: var(--parchment); background: var(--ink); min-height: 100%; box-sizing: border-box; padding: 14px; }
+.title8 { font-family: 'Press Start 2P', monospace; color: var(--gold-hi); letter-spacing: 1px; text-align: center; font-size: 22px; margin: 8px 0; }
+.title8.small { font-size: 12px; text-align: left; }
+.subtitle { text-align: center; opacity: 0.8; margin-top: 0; }
+.frame { border: 3px solid var(--gold); box-shadow: 0 0 0 3px #3a2a10, inset 0 0 0 2px #6b4f1d; background: var(--night); padding: 10px; margin-bottom: 10px; }
+.bbtn { font: inherit; display: block; width: 100%; text-align: left; border: 2px solid var(--gold); padding: 4px 10px; margin: 6px 0; color: #f2d48a; background: #2a1e33; cursor: pointer; }
+.bbtn:hover:not(:disabled), .bbtn.chosen { background: #3d2b4a; box-shadow: 0 0 0 2px var(--gold-hi); }
+.bbtn:disabled { opacity: 0.5; cursor: wait; }
+.bbtn.inline { display: inline-block; width: auto; margin-left: 8px; }
+.bbtn span { display: block; font-size: 16px; opacity: 0.8; }
+.parchment-input { font: inherit; width: 100%; box-sizing: border-box; background: #0d0a14; color: var(--parchment); border: 2px solid #6b4f1d; padding: 6px 8px; margin-top: 8px; }
+.title-screen { max-width: 760px; margin: 0 auto; }
+.panel { margin-top: 14px; }
+.archetypes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.begin { text-align: center; margin-top: 12px; }
+.game-screen { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 12px; align-items: start; }
+.bview { position: relative; height: 220px; overflow: hidden; display: flex; align-items: flex-end; padding: 8px; color: #fff; text-shadow: 1px 1px 2px #000;
+         background: linear-gradient(160deg, #41306b, #c2643c 60%, #f2c46b); }
+.bview[data-location='delta-crossing'] { background: linear-gradient(170deg, #1e2a4a, #2f5d6b 55%, #9fc3c9); }
+.bview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; }
+.scene-name { position: relative; font-family: 'Press Start 2P', monospace; font-size: 12px; }
+.narration p { margin: 0 0 10px; }
+.pending { opacity: 0.7; font-style: italic; }
+.warn { color: #ffb38a; }
+.game-over { text-align: center; color: var(--gold-hi); font-family: 'Press Start 2P', monospace; font-size: 12px; }
+.sheet { font-size: 18px; position: relative; }
+.sheet .hp { color: #e0605a; letter-spacing: -1px; }
+.sheet .pack { opacity: 0.85; margin-top: 4px; }
+.sheet .quit { position: absolute; right: 8px; top: 6px; }
+.bscry { color: var(--glass); font-size: 18px; position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow: auto; }
+.bscry .t { color: var(--gold-hi); }
+.glass-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.glass-tab { position: fixed; right: 0; top: 40%; writing-mode: vertical-rl; color: var(--gold-hi); cursor: pointer; font: inherit; }
+.graph { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.pill { border: 1px solid var(--glass); padding: 0 6px; opacity: 0.5; }
+.pill.lit { opacity: 1; color: var(--gold-hi); border-color: var(--gold-hi); }
+.pill.live { animation: pulse 1s infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 8px var(--gold-hi); } }
+.feed { list-style: none; padding: 0; margin: 0; }
+.feed li { margin-bottom: 6px; }
+.q { font: inherit; background: none; border: none; color: var(--gold-hi); cursor: pointer; padding: 0 2px; }
+.explain-box { display: block; background: #1d1630; border-left: 2px solid var(--gold-hi); padding: 4px 8px; margin: 4px 0; color: var(--parchment); font-size: 16px; }
+.explain-box a { color: var(--gold-hi); }
+.glass-foot { display: flex; justify-content: space-between; margin-top: 10px; opacity: 0.85; }
+.glass-foot a { color: var(--gold-hi); }
+@media (max-width: 900px) { .game-screen { grid-template-columns: 1fr; } .bscry { position: static; max-height: none; } }
