@@ -129,6 +129,11 @@ def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, lis
                 continue
             new.flags[ch.flag] = ch.value
             notes.append(f"flag {ch.flag} = {ch.value}")
+            if ch.flag == "silo_wounds" and ch.value == "3" and "ending" not in new.flags:
+                new.flags["ending"] = "might"  # the third wound ends it: code decides, as with defeat
+                notes.append("Lord Silo yields to your might")
+            elif ch.flag == "ending":
+                notes.append(f"Lord Silo yields to your {ch.value}")
         elif isinstance(ch, DispositionChange):
             for npc in new.npcs:
                 if npc.npc_id == ch.npc_id:
