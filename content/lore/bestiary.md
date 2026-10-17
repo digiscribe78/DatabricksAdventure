@@ -6,7 +6,7 @@ The keeper of the Medallion Inn. Wiry, iron-grey and sharp-eyed, Marta knows eve
 
 ## Keeper Aldric
 
-The senior keeper of the Unity Archive, thirty years in the post and not the panicking sort. Three nights ago he sent his apprentice running to the inn in a terrible state, then barred the Archive's doors from the inside. Nobody has heard from him since.
+The senior keeper of the Unity Archive, thirty years in the post and not the panicking sort. A fortnight ago he sent his apprentice running to the inn in a terrible state, then barred the Archive's doors from the inside. Nobody has heard from him since.
 
 ## The Sweeper
 
@@ -38,7 +38,7 @@ Boss of the Photon Mines: short, broad, loud and fiercely loyal to his crew. He 
 
 ## Silenced Archivist
 
-A sentry bound into an old tome, shambling through Silo's Keep and turning back intruders with blows of hardened paper. Hit points 8, attack +2, defence 13, damage a six-sided die.
+A sentry bound into an old tome, shambling through walled corridors of bricked-up books and turning back intruders with blows of hardened paper. Hit points 8, attack +2, defence 13, damage a six-sided die.
 
 ## Sealing Warden
 

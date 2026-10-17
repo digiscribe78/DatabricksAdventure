@@ -79,3 +79,25 @@ def test_npc_cards_cover_the_cast():
     assert "undercroft" in cards["marta-quill"].secrets
     assert "master" in cards["keeper-aldric"].secrets
     assert "letters" in cards["lord-silo"].secrets
+
+
+# Places the player can see lore from before holding the Lost Catalog (the Swamp and Keep are gated on it).
+BEFORE_CATALOG = {"medallion-inn", "delta-crossing", "unity-archive", "spark-forge", "streaming-falls", "photon-mines"}
+NPCS = LORE.parent / "npcs"
+
+
+def test_nothing_seen_before_the_catalog_names_silos_keep():
+    # Bible rule: never name Silo's location before has_catalog. campaign.md is the DM's own guide,
+    # and its DM rules say as much, so it is the one global book allowed to.
+    import yaml
+
+    from_lore = [p for p in LORE.glob("*.md")
+                 if p.stem in BEFORE_CATALOG or p.stem not in LOCATIONS and p.stem != "campaign"]
+    from_npcs = [p for p in NPCS.glob("*.yaml") if yaml.safe_load(p.read_text())["home_location_id"] in BEFORE_CATALOG]
+    leaks = [p.name for p in from_lore + from_npcs if "Silo's Keep" in p.read_text()]
+    assert leaks == []
+
+
+def test_lorebooks_agree_the_archive_was_sealed_a_fortnight_ago():
+    assert "fortnight" in (LORE / "unity-archive.md").read_text()
+    assert "fortnight" in (LORE / "bestiary.md").read_text()
