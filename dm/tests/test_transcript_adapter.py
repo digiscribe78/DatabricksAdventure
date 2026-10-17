@@ -70,3 +70,36 @@ async def test_the_final_turn_distils_the_adventure(mem_store, recorded, monkeyp
     assert result["game"]["distilled"] == ["Spared the wraith"]
     emitted = [c.args[0] for c in context.emit.await_args_list]
     assert emitted[-1] == {"type": "game", "game": result["game"]}
+
+
+@pytest.mark.asyncio
+async def test_the_game_snapshot_goes_out_before_the_transcript_is_written(mem_store, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+    monkeypatch.setattr(adapter, "run_agent", fake_run(TURN))
+    context = ctx()
+    seen = []
+
+    def record(*args, **kwargs):
+        seen.append([c.args[0]["type"] for c in context.emit.await_args_list])
+
+    monkeypatch.setattr(adapter, "record_turn", record)
+    await adapter.invoke({"messages": [{"role": "user", "content": "I bow."}]}, context)
+    assert seen and seen[0][-1] == "game"
+
+
+@pytest.mark.asyncio
+async def test_a_slow_distil_gives_up_rather_than_holding_the_ending(mem_store, monkeypatch):  # noqa: F811
+    import time
+
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+    monkeypatch.setattr(adapter, "run_agent", fake_run({**TURN, "game_over": "defeat"}))
+    monkeypatch.setattr(adapter, "record_turn", lambda *a, **k: None)
+    monkeypatch.setattr(adapter, "distil_adventure", lambda *a, **k: time.sleep(2) or ["late"])
+    monkeypatch.setattr(adapter, "DISTIL_TIMEOUT_S", 0.1)
+    started = time.monotonic()
+    result = await adapter.invoke({"messages": [{"role": "user", "content": "I fall."}]}, ctx())
+    assert result["game"]["distilled"] == [] and time.monotonic() - started < 1.5

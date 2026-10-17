@@ -18,7 +18,7 @@ Dungeon Master to Agent Runtime with its session and memory stores. Traces are s
 Catalog. Every turn is also written as plain messages to a transcript session store
 (`dm-…-transcripts`, created by `make deploy`). `make memory-pipeline PROFILE=…` creates the Dreamer
 pipeline that distils those transcripts into the memory store, about once a day (or run it by hand with
-`agentbricks memory pipeline run`). An adventure's ending also asks the platform to distil it at once.
+`agentbricks memory pipeline run`). An adventure's ending also asks the platform to distil it at once (when the service allows it; otherwise the next Dreamer run picks it up).
 The next adventure's opening recalls what was learned (🧠). `make destroy` removes it all. The AI Search endpoint bills while an index exists, so
 destroy it when you're done.
 

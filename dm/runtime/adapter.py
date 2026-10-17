@@ -163,6 +163,16 @@ def _check_user_input(payload: dict[str, Any], context: InvocationContext) -> No
         )
 
 
+DISTIL_TIMEOUT_S = 20.0  # the ending never waits longer than this for the platform to distil it
+
+
+async def _distil(actor: str, session_id: str) -> list[str]:
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(distil_adventure, actor, session_id), DISTIL_TIMEOUT_S)
+    except TimeoutError:
+        return []  # the next Dreamer run distils it instead
+
+
 def turn_transcript(agent_input: Any, turn: dict) -> tuple[str | None, str]:
     """What the transcript records for a turn: the player's words (or the placeholder) and the reply."""
     messages = agent_input.get("messages") if isinstance(agent_input, dict) else None
@@ -223,16 +233,17 @@ async def _invoke_agent(
         if event.get("type") in ("message", "interrupt"):
             outputs.append(event)
 
-    if turn is not None:
-        # Blocking SDK calls, so off the event loop.
-        await asyncio.to_thread(record_turn, actor, session_id, *turn_transcript(agent_input, turn),
-                                context.invocation_id)
     game = agent_module.game_store().load(session_id)
     snapshot = game_snapshot(game) if game is not None else None
-    if snapshot is not None and turn is not None and turn.get("game_over"):
-        snapshot["distilled"] = await asyncio.to_thread(distil_adventure, actor, session_id)
     if snapshot is not None:
         await context.emit({"type": "game", "game": snapshot})
+    if turn is not None:
+        # After the player has the new state: blocking SDK calls, so off the event loop.
+        await asyncio.to_thread(record_turn, actor, session_id, *turn_transcript(agent_input, turn),
+                                context.invocation_id)
+        if snapshot is not None and turn.get("game_over"):
+            snapshot["distilled"] = await _distil(actor, session_id)  # after the ending is recorded
+            await context.emit({"type": "game", "game": snapshot})
     interrupted = bool(outputs and outputs[-1].get("type") == "interrupt")
     return {
         "output": [event["message"] if event["type"] == "message" else event for event in outputs],

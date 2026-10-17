@@ -33,7 +33,7 @@ def record_turn(actor: str, session_id: str, player_text: str | None, reply: str
 - **De-duplication:** before appending, it reads the newest item. If that item's `invocation_id` matches, the turn was already recorded (a recovery replay) and nothing is written.
 - **Never breaks a turn:** any failure is logged and swallowed. If `TRANSCRIPT_STORE` is unset (local dev, tests), it does nothing.
 
-**Called from** `runtime/adapter.py` `_invoke_agent`, after the turn has been streamed and the `game` snapshot emitted:
+**Called from** `runtime/adapter.py` `_invoke_agent`, after the turn has been streamed and the `game` snapshot emitted (on the final turn, recording comes before distilling so the ending is in the transcript, and the snapshot is sent again with `distilled`; distilling gives up after 20 seconds):
 - **Player text:** the content of the invocation's last user message.
   - It is `None` for the opening scene and for a resume with no message.
   - On a **blocked turn** (the turn has a `guardrail` event), it is replaced with `REFUSED_PLACEHOLDER`, so blocked words never reach the transcript, the pipeline or memory.
