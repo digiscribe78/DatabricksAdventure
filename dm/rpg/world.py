@@ -4,7 +4,7 @@ Lore moves to RAG lorebooks in M2, and characters move to Lakebase in M3. This m
 the source of archetype stats.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pydantic import BaseModel
 
@@ -70,6 +70,11 @@ class Location:
     name: str
     description: str
     exits: tuple[str, ...]
+    gates: dict[str, str] = field(default_factory=dict)  # exit id -> flag that must be "yes"
+
+    def barrier(self, exit_id: str, flags: dict) -> str | None:
+        required = self.gates.get(exit_id)
+        return required if required and flags.get(required) != "yes" else None
 
 
 START_LOCATION_ID = "medallion-inn"
@@ -85,7 +90,8 @@ LOCATIONS: dict[str, Location] = {
             "running backwards some nights, and the Unity Archive has sealed its doors. The "
             "innkeeper, Marta Quill, knows everyone's business and sells it by the half-pint."
         ),
-        exits=("delta-crossing",),
+        exits=("delta-crossing", "unity-archive"),
+        gates={"unity-archive": "knows_cellar_route"},
     ),
     "delta-crossing": Location(
         id="delta-crossing",
@@ -95,7 +101,68 @@ LOCATIONS: dict[str, Location] = {
             "different day. A rope ferry worked by a silent ferryman called the Sweeper crosses "
             "to the road for the Unity Archive. Upstream stand the broken piers of the old bridge."
         ),
-        exits=("medallion-inn",),
+        exits=("medallion-inn", "unity-archive", "data-swamp"),
+        gates={"data-swamp": "has_catalog"},
+    ),
+    "unity-archive": Location(
+        id="unity-archive",
+        name="The Unity Archive",
+        description=(
+            "The great library of Sparkia, a hill of grey stone and bronze doors that answer only "
+            "to proper writs. The doors are sealed. Behind them, Keeper Aldric guards the vault. "
+            "Three roads leave its courtyard for the realm's great houses."
+        ),
+        exits=("delta-crossing", "spark-forge", "streaming-falls", "photon-mines", "medallion-inn"),
+        gates={"spark-forge": "spoke_with_aldric", "streaming-falls": "spoke_with_aldric",
+               "photon-mines": "spoke_with_aldric", "medallion-inn": "knows_cellar_route"},
+    ),
+    "spark-forge": Location(
+        id="spark-forge",
+        name="The Spark Forge",
+        description=(
+            "A tower of furnaces where Sparkia's mages learn to kindle. Apprentices work in rings "
+            "around a single great flame. Forgemaster Ignatia Vale holds the Forge Seal."
+        ),
+        exits=("unity-archive",),
+    ),
+    "streaming-falls": Location(
+        id="streaming-falls",
+        name="The Streaming Falls",
+        description=(
+            "A curtain of water that never stops, where the river's memory spills into mist. In "
+            "the spray, shapes replay what travellers once did. The Echo keeps the Falls Seal."
+        ),
+        exits=("unity-archive",),
+    ),
+    "photon-mines": Location(
+        id="photon-mines",
+        name="The Photon Mines",
+        description=(
+            "Deep galleries lit by ore that shines like trapped light. The tunnels shift after "
+            "every collapse, and miners chalk each turn on the walls. Shiftmaster Odo Brack holds "
+            "the Mines Seal."
+        ),
+        exits=("unity-archive",),
+    ),
+    "data-swamp": Location(
+        id="data-swamp",
+        name="The Data Swamp",
+        description=(
+            "A sprawling fen where walled-away records rot into mud and the water runs every way "
+            "at once. Swamp rats, Orphans and worse lurk here, and Warden Grisle keeps the road to "
+            "Silo's Keep."
+        ),
+        exits=("delta-crossing", "silos-keep"),
+        gates={"silos-keep": "has_catalog"},
+    ),
+    "silos-keep": Location(
+        id="silos-keep",
+        name="Silo's Keep",
+        description=(
+            "A fortress of walled-up books rising from the swamp, its corridors bricked shut with "
+            "volumes. At its heart, Lord Silo keeps the realm's knowledge from everyone."
+        ),
+        exits=("data-swamp",),
     ),
 }
 

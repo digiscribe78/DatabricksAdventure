@@ -1,0 +1,13 @@
+npc_id: lord-silo
+name: Lord Silo
+home_location_id: silos-keep
+persona: >-
+  Once the Unity Archive's greatest Keeper, now the Lord of the Walls: tall, gaunt and grey in faded
+  scholar's robes. Weary rather than wicked, and utterly certain that free knowledge is always misused.
+speech_style: >-
+  Calm, reasoned and patient, never shouts, explains as if to a pupil, and answers anger with
+  disappointment. Falters only at the mention of his old friend.
+secrets: >-
+  He is lonely and keeps a bundle of old letters from Aldric, his former apprentice, read until the folds
+  wore through. Proof that knowledge can be shared well, or Aldric's forgiveness, can reach him.
+reveal_after: has_catalog

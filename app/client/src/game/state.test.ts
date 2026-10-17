@@ -61,3 +61,14 @@ describe('retry', () => {
     expect(v.lastRequest).toEqual({ message: 'I wade in' });
   });
 });
+
+describe('canAct', () => {
+  it('locks input while the DM ponders and once the adventure has ended', async () => {
+    const { canAct } = await import('./state');
+    const v = newView('s1');
+    expect(canAct(v)).toBe(true);
+    expect(canAct(startTurn(v, 0))).toBe(false);
+    const ended = applyEvent(v, { event: 'turn', data: { turn: { narration: 'The end.', choices: [], events: [], game_over: 'victory' } } }, 1);
+    expect(canAct(ended)).toBe(false);
+  });
+});

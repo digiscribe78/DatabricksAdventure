@@ -471,7 +471,8 @@ async def test_turn_emits_and_returns_game_snapshot_without_secrets(mem_store, m
     result = await adapter.invoke({"messages": []}, context)
     game = result["game"]
     assert game["character"]["name"] == "Brannoc" and game["location_name"].startswith("The Medallion Inn")
-    assert game["exits"] == [{"id": "delta-crossing", "name": "The Delta Crossing"}]
+    assert game["exits"] == [{"id": "delta-crossing", "name": "The Delta Crossing", "open": True},
+                             {"id": "unity-archive", "name": "The Unity Archive", "open": False}]
     assert game["npcs"] == [{"npc_id": "marta-quill", "name": "Marta Quill", "disposition": 0}]
     assert game["traces_url"] == "https://example.cloud.databricks.com/ml/experiments/42/traces"
     assert "secret" not in json.dumps(game).lower()
@@ -486,3 +487,11 @@ async def test_pasted_raw_session_from_another_player_finds_no_adventure(mem_sto
     mem_store.create_adventure("alice:session:raw-1", "alice:player:self", "Elowen", "mage", client_session_id="raw-1")
     with pytest.raises(ValueError, match="new_game"):
         await invoke({"messages": [{"role": "user", "content": "hi"}]}, authed_ctx("mallory", session="mallory:session:raw-1"))
+
+
+def test_snapshot_exits_show_which_are_open(mem_store):
+    from runtime.adapter import game_snapshot
+
+    game = mem_store.create_adventure("s-x", "p", "Brannoc", "warrior")
+    exits = {e["id"]: e["open"] for e in game_snapshot(game)["exits"]}
+    assert exits == {"delta-crossing": True, "unity-archive": False}

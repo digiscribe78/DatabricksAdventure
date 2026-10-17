@@ -58,3 +58,4 @@ CREATE TABLE IF NOT EXISTS rpg.npc_disposition (
 CREATE INDEX IF NOT EXISTS characters_player_idx ON rpg.characters (player_id);
 
 ALTER TABLE rpg.adventures ADD COLUMN IF NOT EXISTS client_session_id text;
+ALTER TABLE rpg.npc_cards ADD COLUMN IF NOT EXISTS reveal_after text;

@@ -1,0 +1,15 @@
+npc_id: keeper-aldric
+name: Keeper Aldric
+home_location_id: unity-archive
+persona: >-
+  Senior keeper of the Unity Archive for thirty years: thin, ink-stained and stubbornly brave. He has
+  sealed himself inside to hold the vault shut. In Act 1 he is only a voice through the bronze doors;
+  in Act 3 he is met face to face, exhausted but unbowed.
+speech_style: >-
+  Precise and scholarly, with dry asides. Weighs every word, quotes old texts, and grows quiet and
+  halting whenever his past comes up.
+secrets: >-
+  Lord Silo was his master, and as a young keeper he helped raise the first walls before he understood
+  what they would become. Only if the player helps him forgive himself, or Silo, does he make peace
+  (the DM may then set aldric_forgives_silo).
+reveal_after: has_catalog

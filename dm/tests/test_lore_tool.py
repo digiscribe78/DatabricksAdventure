@@ -23,13 +23,13 @@ def test_tool_is_auto_registered():
 
 
 def test_scope_is_location_exits_and_global():
-    assert lore.scope("medallion-inn") == ["medallion-inn", "delta-crossing", "global"]
+    assert lore.scope("medallion-inn") == ["medallion-inn", "delta-crossing", "unity-archive", "global"]
 
 
 def test_search_uses_state_location_not_model_input(calls):
     out = lore.search_lore.invoke({"query": "ferryman", "state": STATE})
     assert out == {"query": "ferryman", "passages": [PASSAGE]}
-    assert calls == [("ferryman", ["medallion-inn", "delta-crossing", "global"])]
+    assert calls == [("ferryman", ["medallion-inn", "delta-crossing", "unity-archive", "global"])]
 
 
 def test_model_only_supplies_query():

@@ -52,3 +52,20 @@ def test_defence_is_ten_plus_best_of_might_and_wits():
     assert new_character("A", "warrior").defence == 13
     assert new_character("B", "mage").defence == 13
     assert new_character("C", "bard").defence == 11
+
+
+def test_eight_locations_with_bible_gates():
+    from rpg.world import LOCATIONS
+
+    assert set(LOCATIONS) == {"medallion-inn", "delta-crossing", "unity-archive", "spark-forge",
+                              "streaming-falls", "photon-mines", "data-swamp", "silos-keep"}
+    archive = LOCATIONS["unity-archive"]
+    assert archive.barrier("spark-forge", {}) == "spoke_with_aldric"
+    assert archive.barrier("spark-forge", {"spoke_with_aldric": "yes"}) is None
+    assert archive.barrier("delta-crossing", {}) is None
+    assert LOCATIONS["delta-crossing"].barrier("data-swamp", {}) == "has_catalog"
+    assert LOCATIONS["medallion-inn"].barrier("unity-archive", {}) == "knows_cellar_route"
+    for loc in LOCATIONS.values():
+        assert set(loc.gates) <= set(loc.exits)
+        for e in loc.exits:
+            assert loc.id in LOCATIONS[e].exits, f"{loc.id}->{e} has no way back"

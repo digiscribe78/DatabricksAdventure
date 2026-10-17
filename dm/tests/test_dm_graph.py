@@ -479,3 +479,44 @@ def test_resuming_without_a_message_uses_the_continue_cue_not_the_opening():
     first, second = model.reason_calls[0], model.reason_calls[1]
     assert first[-1].content == OPENING_CUE
     assert second[-1].content == CONTINUE_CUE
+
+
+def test_story_so_far_is_in_the_dm_prompt():
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    run(make(model), "Hello")
+    assert "Story so far: Act 1" in model.reason_calls[0][0].content
+
+
+def test_ending_flag_sets_victory():
+    from agent.tools.state_tools import set_quest_flag
+
+    store = new_store()
+    game = store.load("t1")
+    game.location_id = "silos-keep"
+    game.flags.update({"has_catalog": "yes"})
+    store.commit("t1", game)
+    model = ScriptedModel(
+        replies=[AIMessage(content="", tool_calls=[tc("set_quest_flag", flag="ending", value="charm")]), AIMessage(content="d")],
+        structured=[PROSE],
+    )
+    turn = run(make(model, [roll_check, set_quest_flag], store), "I offer Silo Aldric's letters.")["turn"]
+    assert turn["game_over"] == "victory"
+
+
+def test_aldric_secret_is_hidden_until_act_three():
+    from rpg.state import NpcCard
+
+    aldric = NpcCard(npc_id="keeper-aldric", name="Keeper Aldric", persona="p", speech_style="s",
+                     secrets="Lord Silo was his master.", home_location_id="unity-archive", reveal_after="has_catalog")
+    for flags, visible in [({"spoke_with_aldric": "yes"}, False), ({"has_catalog": "yes"}, True)]:
+        store = InMemoryStore([aldric])
+        store.create_adventure("t1", "p", "Brannoc", "warrior")
+        game = store.load("t1")
+        game.location_id = "unity-archive"
+        game.flags.update(flags)
+        store.commit("t1", game)
+        model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+        run(make(model, store=store), "Who is Silo to you?")
+        system = model.reason_calls[0][0].content
+        assert ("Lord Silo was his master" in system) is visible
+        assert "Never reveal" in system  # bible DM rules live in the system prompt, not only in lore

@@ -57,11 +57,11 @@ class PostgresStore:
         with self._connect() as conn:
             for c in cards:
                 conn.execute(
-                    "INSERT INTO rpg.npc_cards (npc_id, name, persona, speech_style, secrets, home_location_id) "
-                    "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (npc_id) DO UPDATE SET name = EXCLUDED.name, "
+                    "INSERT INTO rpg.npc_cards (npc_id, name, persona, speech_style, secrets, home_location_id, reveal_after) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (npc_id) DO UPDATE SET name = EXCLUDED.name, "
                     "persona = EXCLUDED.persona, speech_style = EXCLUDED.speech_style, secrets = EXCLUDED.secrets, "
-                    "home_location_id = EXCLUDED.home_location_id",
-                    (c.npc_id, c.name, c.persona, c.speech_style, c.secrets, c.home_location_id),
+                    "home_location_id = EXCLUDED.home_location_id, reveal_after = EXCLUDED.reveal_after",
+                    (c.npc_id, c.name, c.persona, c.speech_style, c.secrets, c.home_location_id, c.reveal_after),
                 )
 
     def create_adventure(self, session_id, player_id, name, archetype, client_session_id=None):
@@ -95,10 +95,10 @@ class PostgresStore:
             flags = dict(conn.execute("SELECT flag, value FROM rpg.quest_flags WHERE character_id = %s", (cid,)).fetchall())
             npcs = [
                 NpcPresence(npc_id=r[0], name=r[1], persona=r[2], speech_style=r[3], secrets=r[4],
-                            home_location_id=r[5], disposition=r[6])
+                            home_location_id=r[5], disposition=r[6], reveal_after=r[7])
                 for r in conn.execute(
                     "SELECT n.npc_id, n.name, n.persona, n.speech_style, n.secrets, n.home_location_id, "
-                    "COALESCE(d.disposition, 0) FROM rpg.npc_cards n LEFT JOIN rpg.npc_disposition d "
+                    "COALESCE(d.disposition, 0), n.reveal_after FROM rpg.npc_cards n LEFT JOIN rpg.npc_disposition d "
                     "ON d.npc_id = n.npc_id AND d.character_id = %s WHERE n.home_location_id = %s ORDER BY n.npc_id",
                     (cid, location_id),
                 ).fetchall()

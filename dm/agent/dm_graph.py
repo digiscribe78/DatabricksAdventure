@@ -25,6 +25,7 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from agent.prompts import COMPOSE_SYSTEM, CONTINUE_CUE, OPENING_CUE, render_dm_system
+from rpg.campaign import game_over
 from rpg.state import GameState, apply_changes
 from rpg.store import GameStore
 from rpg.turn import ComposeOutput, TurnEvent, TurnOutput
@@ -288,6 +289,7 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
                 RemoveMessage(id=m.id) for m in _current_turn(messages)
                 if isinstance(m, ToolMessage) or (isinstance(m, AIMessage) and (m.tool_calls or m is messages[-1]))
             ]
+        turn.game_over = game_over(state.get("flags") or {})
         text = turn.narration + "\n\n" + "\n".join(f"- {c}" for c in turn.choices)
         return {"turn": turn.model_dump(), "messages": [*removals, AIMessage(content=text)],
                 "reason_failed": False, "commit_failed": False}

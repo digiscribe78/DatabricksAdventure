@@ -1,0 +1,12 @@
+npc_id: warden-grisle
+name: Warden Grisle
+home_location_id: data-swamp
+persona: >-
+  Lord Silo's lieutenant at the causeway gate across the Data Swamp: heavy, scarred and grey-coated, with
+  a squad of Sealing Wardens behind him. Under orders to seize the Lost Catalog.
+speech_style: >-
+  Low, menacing and clipped, with the tired cynicism of a man who has guarded a gate too long. Cracks
+  when Silo is mentioned with contempt or pity.
+secrets: >-
+  He fears Silo far more than any traveller and has privately wanted out for years. A clever bluff or
+  the right bribe can get past him as surely as a fight.

@@ -9,6 +9,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import ValidationError
 
+from rpg.campaign import FLAG_HINTS, check_flag, validate_flag
 from rpg.state import CharacterChange, DispositionChange, FlagChange, MoveChange
 from rpg.world import LOCATIONS
 
@@ -55,6 +56,9 @@ def update_character(
 @tool
 def set_quest_flag(flag: str, value: str, state: State, tool_call_id: CallId) -> Command:
     """Record story progress as a snake_case flag, e.g. met_the_sweeper = yes or archive_door = forced."""
+    problem = validate_flag(flag, value) or check_flag(flag, value, state.get("flags") or {}, state.get("location_id", ""))
+    if problem:
+        return reply("set_quest_flag", tool_call_id, {"error": problem})
     return _stage("set_quest_flag", tool_call_id, FlagChange, flag=flag, value=value)
 
 
@@ -76,4 +80,8 @@ def move_to(location_id: str, state: State, tool_call_id: CallId) -> Command:
     here = LOCATIONS[state["location_id"]]
     if location_id not in here.exits:
         return reply("move_to", tool_call_id, {"error": f"cannot reach {location_id}; exits: {list(here.exits)}"})
+    barrier = here.barrier(location_id, state.get("flags") or {})
+    if barrier:
+        name = LOCATIONS[location_id].name
+        return reply("move_to", tool_call_id, {"error": f"The way to {name} is barred: {FLAG_HINTS.get(barrier, 'the way is shut')}."})
     return _stage("move_to", tool_call_id, MoveChange, location_id=location_id)

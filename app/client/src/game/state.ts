@@ -65,6 +65,11 @@ export function startTurn(v: GameView, now: number, playerText?: string, request
   };
 }
 
+/** The player may act unless the DM is mid-turn or the adventure has ended. */
+export function canAct(v: GameView): boolean {
+  return !v.busy && !v.gameOver;
+}
+
 export function failTurn(v: GameView, message: string): GameView {
   return { ...v, busy: false, error: message };
 }
