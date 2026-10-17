@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playTurn, type TurnRequest } from './api';
 import { trackFor } from './music';
+import { inlineParts } from './format';
 import { ScryingGlass } from './ScryingGlass';
 import { sceneImage } from './scene';
 import { applyEvent, canAct, failTurn, newView, startTurn, type GameView } from './state';
@@ -15,6 +16,11 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
   const [glassOpen, setGlassOpen] = useState(true);
   const [text, setText] = useState('');
   const started = useRef(false);
+  const narrationRef = useRef<HTMLDivElement>(null);
+  // Each new turn's narration starts at the top of its scrolling box.
+  useEffect(() => {
+    narrationRef.current?.scrollTo({ top: 0 });
+  }, [view.narration]);
 
   const send = useCallback(async (input: TurnRequest, playerText?: string) => {
     setView((v) => startTurn(v, Date.now(), playerText, input));
@@ -54,8 +60,10 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
             <span className="scene-name">{view.game?.location_name ?? 'The Kingdom of Sparkia'}</span>
           </div>
         </div>
-        <div className="frame narration" aria-live="polite">
-          {view.narration ? view.narration.split('\n\n').map((p) => <p key={p}>{p}</p>) : <p className="pending">The mists part…</p>}
+        <div className="frame narration" aria-live="polite" ref={narrationRef}>
+          {view.narration ? view.narration.split('\n\n').map((p) => (
+            <p key={p}>{inlineParts(p).map((part, i) => (part.bold ? <strong key={i}>{part.text}</strong> : part.italic ? <em key={i}>{part.text}</em> : part.text))}</p>
+          )) : <p className="pending">The mists part…</p>}
           {view.error && (
             <p className="warn">
               {view.error}{' '}
@@ -70,6 +78,8 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
               <button className="bbtn inline" onClick={onQuit}>Begin a new tale ▸</button>
             </p>
           )}
+        </div>
+        <div className="frame actions">
           <div className="choices">
             {view.choices.map((ch) => (
               <button key={ch} className="bbtn" disabled={!canAct(view)} onClick={() => act(ch)}>{ch}</button>
@@ -78,6 +88,9 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
           <input className="parchment-input" value={text} disabled={!canAct(view)} placeholder={view.busy ? 'The DM ponders…' : '…or type what you do'}
                  onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && act(text)} />
         </div>
+      </main>
+      <div className="side">
+        <ScryingGlass view={view} open={glassOpen} onToggle={() => setGlassOpen(!glassOpen)} />
         <div className="frame sheet">
           {c ? (
             <>
@@ -87,8 +100,7 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
           ) : 'Reading your character sheet…'}
           <button className="bbtn inline quit" onClick={onQuit}>Leave ▸</button>
         </div>
-      </main>
-      <ScryingGlass view={view} open={glassOpen} onToggle={() => setGlassOpen(!glassOpen)} />
+      </div>
     </div>
   );
 }
