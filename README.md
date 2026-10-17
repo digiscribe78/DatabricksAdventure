@@ -34,12 +34,14 @@ creates. Guardrails are Unity AI Gateway service policies attached to that servi
 without them the DM's system prompt is the only defence, and the game works the same.
 
 1. In the workspace's **Previews** page, check **Unity AI Gateway Service Policies** is on.
-2. In **AI Gateway**, open `dm_model`, then **Policies → New policy**, and add three policies, each
-   applied to all account users in **Enforce** mode:
-   - **Jailbreak**, named `block_jailbreak` (input phase);
-   - **Unsafe content**, named `block_unsafe_content`;
-   - a **custom** policy named `stay_in_sparkia`, with the rule pasted from
-     [`content/guardrails/stay-in-sparkia.md`](content/guardrails/stay-in-sparkia.md).
+2. In **AI Gateway**, open `dm_model`, then **Policies → New policy**, and add, each applied to all
+   account users:
+   - a **custom** policy named `stay_in_sparkia`, input phase, **Enforce** mode, with the rule pasted
+     from [`content/guardrails/stay-in-sparkia.md`](content/guardrails/stay-in-sparkia.md);
+   - optionally, the built-in **Jailbreak** (`block_jailbreak`) and **Unsafe content**
+     (`block_unsafe_content`) policies in **Log** mode, to compare. Don't enforce them: they judge the
+     DM's whole request, so they flag the game's own system prompt as a jailbreak and its combat as
+     unsafe, and refuse about a quarter of normal turns.
 3. Wait a minute or two, then run `make guardrails-check PROFILE=… CATALOG=…`.
 
 When a policy blocks a turn, the DM refuses in-world, saves nothing from that turn, and the Scrying
