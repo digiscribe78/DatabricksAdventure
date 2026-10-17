@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playTurn, type TurnRequest } from './api';
 import { trackFor } from './music';
+import { EndScreen } from './EndScreen';
 import { inlineParts } from './format';
 import { revealHint } from './hints';
 import { ScryingGlass } from './ScryingGlass';
 import { sceneImage } from './scene';
 import { applyEvent, canAct, failTurn, newView, startTurn, type GameView } from './state';
 
-export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
+export function GameScreen({ sessionId, newGame, onQuit, onTrack, onGuide }: {
   sessionId: string;
   newGame?: TurnRequest['newGame'];
   onQuit: () => void;
   onTrack: (track: string) => void;
+  onGuide: (page?: string) => void;
 }) {
   const [view, setView] = useState<GameView>(() => newView(sessionId));
   const [glassOpen, setGlassOpen] = useState(true);
@@ -73,14 +75,9 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
               )}
             </p>
           )}
-          {view.gameOver && (
-            <p className="game-over">
-              — {view.gameOver === 'victory' ? 'Victory!' : 'Your tale ends here.'} —{' '}
-              <button className="bbtn inline" onClick={onQuit}>Begin a new tale ▸</button>
-            </p>
-          )}
         </div>
         <div className="frame actions">
+          {view.gameOver ? <EndScreen view={view} onNewTale={onQuit} onGuide={onGuide} /> : (<>
           <div className="choices">
             {view.choices.map((ch) => (
               <button key={ch} className="bbtn" disabled={!canAct(view)} onClick={() => act(ch)}>{ch}</button>
@@ -102,6 +99,7 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
               )}
             </div>
           )}
+          </>)}
         </div>
       </main>
       <div className="side">

@@ -25,7 +25,7 @@ export default function App() {
         <TitleScreen onStart={(sessionId, newGame) => setScreen({ kind: 'game', sessionId, newGame })} onTrack={setTrack} />
       ) : (
         <GameScreen key={screen.sessionId} sessionId={screen.sessionId} newGame={screen.newGame}
-                    onQuit={() => setScreen({ kind: 'title' })} onTrack={setTrack} />
+                    onQuit={() => setScreen({ kind: 'title' })} onTrack={setTrack} onGuide={() => {}} />
       )}
     </>
   );
