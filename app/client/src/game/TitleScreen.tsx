@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listAdventures, type Adventure } from './api';
+import { TITLE_IMAGE } from './scene';
 
 type Archetype = 'warrior' | 'mage' | 'bard';
 const ARCHETYPES: { id: Archetype; label: string; blurb: string }[] = [
@@ -8,11 +9,16 @@ const ARCHETYPES: { id: Archetype; label: string; blurb: string }[] = [
   { id: 'bard', label: 'Bard', blurb: 'Charm +3 · 14 HP · rapier, lute, letter of introduction' },
 ];
 
-export function TitleScreen({ onStart }: { onStart: (sessionId: string, newGame?: { name: string; archetype: Archetype }) => void }) {
+export function TitleScreen({ onStart, onTrack }: {
+  onStart: (sessionId: string, newGame?: { name: string; archetype: Archetype }) => void;
+  onTrack: (track: string) => void;
+}) {
   const [name, setName] = useState('');
   const [archetype, setArchetype] = useState<Archetype>('warrior');
   const [saves, setSaves] = useState<Adventure[] | null>(null);
   const [error, setError] = useState<string>();
+
+  useEffect(() => { onTrack('title'); }, [onTrack]);
 
   useEffect(() => {
     listAdventures().then(setSaves).catch((e: Error) => setError(e.message));
@@ -23,6 +29,10 @@ export function TitleScreen({ onStart }: { onStart: (sessionId: string, newGame?
 
   return (
     <div className="b title-screen">
+      <div className="frame title-card">
+        <img src={TITLE_IMAGE} alt="An adventurer looks out over the Kingdom of Sparkia at dusk"
+             onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
+      </div>
       <h1 className="title8">The Kingdom of Sparkia</h1>
       <p className="subtitle">A Databricks Adventure</p>
       <div className="frame panel">

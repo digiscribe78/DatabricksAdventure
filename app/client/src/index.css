@@ -96,11 +96,14 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 .bbtn span { display: block; font-size: 16px; opacity: 0.8; }
 .parchment-input { font: inherit; width: 100%; box-sizing: border-box; background: #0d0a14; color: var(--parchment); border: 2px solid #6b4f1d; padding: 6px 8px; margin-top: 8px; }
 .title-screen { max-width: 760px; margin: 0 auto; }
+.music-toggle { position: fixed; right: 12px; bottom: 12px; width: auto; z-index: 10; font-family: 'VT323', monospace; font-size: 20px; }
+.title-card { padding: 0; line-height: 0; }
+.title-card img { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; object-position: 50% 60%; }
 .panel { margin-top: 14px; }
 .archetypes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .begin { text-align: center; margin-top: 12px; }
 .game-screen { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 12px; align-items: start; }
-.bview { position: relative; height: 220px; overflow: hidden; display: flex; align-items: flex-end; padding: 8px; color: #fff; text-shadow: 1px 1px 2px #000;
+.bview { position: relative; aspect-ratio: 16 / 9; overflow: hidden; display: flex; align-items: flex-end; padding: 8px; color: #fff; text-shadow: 1px 1px 2px #000;
          background: linear-gradient(160deg, #41306b, #c2643c 60%, #f2c46b); }
 .bview[data-location='delta-crossing'] { background: linear-gradient(170deg, #1e2a4a, #2f5d6b 55%, #9fc3c9); }
 .bview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; }

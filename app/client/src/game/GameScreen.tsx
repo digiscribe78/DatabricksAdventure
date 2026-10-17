@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playTurn, type TurnRequest } from './api';
+import { trackFor } from './music';
 import { ScryingGlass } from './ScryingGlass';
 import { sceneImage } from './scene';
 import { applyEvent, canAct, failTurn, newView, startTurn, type GameView } from './state';
 
-export function GameScreen({ sessionId, newGame, onQuit }: {
+export function GameScreen({ sessionId, newGame, onQuit, onTrack }: {
   sessionId: string;
   newGame?: TurnRequest['newGame'];
   onQuit: () => void;
+  onTrack: (track: string) => void;
 }) {
   const [view, setView] = useState<GameView>(() => newView(sessionId));
   const [glassOpen, setGlassOpen] = useState(true);
@@ -28,6 +30,9 @@ export function GameScreen({ sessionId, newGame, onQuit }: {
     started.current = true;
     void send(newGame ? { newGame } : { message: '' });
   }, [newGame, send]);
+
+  const track = trackFor(view);
+  useEffect(() => { if (track) onTrack(track); }, [track, onTrack]);
 
   const act = (msg: string) => {
     const m = msg.trim();
