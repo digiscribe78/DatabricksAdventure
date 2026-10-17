@@ -50,3 +50,15 @@ def test_guardrails_check_reports_the_blocking_policy_or_warns():
                         response_metadata={"finish_reason": "content_filter"})
     assert "block_jailbreak blocked" in report(blocked)
     assert report(AIMessage(content="Sure!")).startswith("WARNING")
+
+
+def test_missing_service_is_recognised_in_other_wordings():
+    for message in ("RESOURCE_DOES_NOT_EXIST: model service dm_model", "Model service does not exist", "HTTP 404 NOT_FOUND"):
+        calls = []
+
+        def run(cmd, message=message):
+            calls.append(cmd)
+            if cmd[2] == "get-model-service":
+                raise RuntimeError(f"databricks ai-gateway get-model-service failed: {message}")
+
+        assert ensure_model_service("p", "cat", "sch", run=run) is True, message

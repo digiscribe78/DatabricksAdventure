@@ -5,11 +5,14 @@ service, never on the shared system.ai models. Attaching them is a UI step (READ
 """
 
 import json
+import re
 import sys
 
 from devtools.grants import _run
 
 DESTINATION = "system.ai.databricks-claude-sonnet-4-5"
+# How the CLI says a model service is missing (seen live: "Resource not found"; the rest are its other forms).
+_MISSING = re.compile(r"not found|does not exist|RESOURCE_DOES_NOT_EXIST|NOT_FOUND|\b404\b", re.IGNORECASE)
 
 
 def service_name(catalog: str, schema: str) -> str:
@@ -33,7 +36,7 @@ def ensure_model_service(profile: str, catalog: str, schema: str, run=_run) -> b
              "--profile", profile, "-o", "json"])
         return False
     except RuntimeError as e:
-        if "not found" not in str(e).lower():
+        if not _MISSING.search(str(e)):
             raise
     run(["databricks", "ai-gateway", "create-model-service", f"schemas/{catalog}.{schema}", "dm_model",
          "--json", json.dumps(create_body()), "--profile", profile, "-o", "json"])

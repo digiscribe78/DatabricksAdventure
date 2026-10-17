@@ -44,7 +44,7 @@ without them the DM's system prompt is the only defence, and the game works the 
      unsafe, and refuse about a quarter of normal turns.
 3. Wait a minute or two, then run `make guardrails-check PROFILE=… CATALOG=…`.
 
-When a policy blocks a turn, the DM refuses in-world, saves nothing from that turn, and the Scrying
+When a policy blocks a turn, the DM refuses in-world, saves no game state from that turn, and the Scrying
 Glass shows a 🛡 line naming the policy. If `make guardrails-check` passes but the deployed game never
 shows 🛡 on a jailbreak, add the DM's service principal (`agent-bricks-dm`) to the policies' "Applied
 to". Never attach policies to the shared `system.ai` models: they would apply to everyone in the

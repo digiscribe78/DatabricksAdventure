@@ -17,7 +17,7 @@ def test_every_scenario_names_real_places_flags_tools_and_npcs():
 
 def test_categories_match_the_spec():
     counts = Counter(s.category for s in load_scenarios())
-    assert counts == {"check": 3, "combat": 3, "defeat": 1, "lore": 3, "npc": 2, "movement": 3,
+    assert counts == {"check": 4, "combat": 3, "defeat": 1, "lore": 4, "npc": 3, "movement": 3,
                       "bookkeeping": 4, "spoiler": 1, "jailbreak": 5}
 
 
