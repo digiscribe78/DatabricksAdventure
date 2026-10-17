@@ -24,6 +24,9 @@ Databricks Apps page. Each player needs `CAN_USE` on both apps: `make grant-play
 PLAYER=someone@example.com`. For local UI work, run `make app-dev PROFILE=…`, which talks to the
 deployed DM with your own token.
 
+`make eval PROFILE=… CATALOG=…` plays the eval scenarios against the DM and prints its report card
+(needs the stack running).
+
 ## Licence
 
 [Apache-2.0](LICENSE)
