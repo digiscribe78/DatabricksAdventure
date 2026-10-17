@@ -15,7 +15,7 @@
 
 ## 2. How a run works
 
-`make eval PROFILE=<profile>` runs `cd dm && uv run python -m eval.run`, which calls `mlflow.genai.evaluate(data=scenarios, predict_fn=play_turn, scorers=[...])`.
+`make eval PROFILE=<profile>` runs `cd dm && uv run python -m evals.run`, which calls `mlflow.genai.evaluate(data=scenarios, predict_fn=play_turn, scorers=[...])`.
 
 For each scenario, `play_turn`:
 
@@ -28,11 +28,13 @@ For each scenario, `play_turn`:
 3. Seeds the dice RNG per scenario (`random.Random(seed)`), so rolls repeat even though the model's choices don't.
 4. Plays the optional `history` turns, then the scenario's `input`, and returns the turn plus the resulting game state (`location_id`, `flags`).
 
+The harness records the turn's details (tool calls, flags, location, traceable numbers, the turn) on the trace as the `eval.details` span attribute; code scorers read them back, so the judges see only the narration and choices. The predict function traces itself (`dm_turn`), because with LangChain autolog on the graph would otherwise make the root trace and leave no span for the details. Scenarios run one at a time (`MLFLOW_GENAI_EVAL_MAX_WORKERS=1`) because the dice are seeded through a module global.
+
 Tracing: `mlflow.langchain.autolog()`. `search_lore`'s index query is wrapped in an `mlflow.trace(span_type="RETRIEVER")` span, which the groundedness judge needs and which also improves live traces. Results go to a dedicated experiment, **`/Shared/databricks-adventure/dm-evals`**, with default (non-UC) trace storage: eval traces stay out of play history, and the local client can upload artifacts.
 
 ## 3. Scenarios
 
-`dm/eval/scenarios.yaml`, about 24 scenarios. Each has:
+`dm/evals/scenarios.yaml`, about 24 scenarios. Each has:
 
 ```yaml
 - id: gate-forge-before-aldric
@@ -43,6 +45,7 @@ Tracing: `mlflow.langchain.autolog()`. `search_lore`'s index query is wrapped in
   input: "Without waiting, I march straight off to the Spark Forge."
   expect:
     tools: [move_to]      # must be called
+    any_tools: []         # at least one must be called
     no_tools: []          # must not be called
     flags: {}             # must be set afterwards (flag: value)
     no_flags: [seal_forge]
@@ -96,7 +99,7 @@ A scorer whose expectations don't apply to a scenario returns no value for it (n
 ## 6. Layout
 
 ```
-dm/eval/
+dm/evals/
 ├─ scenarios.yaml
 ├─ harness.py     play_turn: seed store, stub memory, seeded dice, run the graph
 ├─ scorers.py     the four code scorers and the judge list
@@ -104,7 +107,7 @@ dm/eval/
 dm/tests/test_eval_*.py   offline tests for the scorers, the scenarios and the harness (fake model)
 ```
 
-The parent spec's `eval/` directory at the repo root moves into `dm/eval/`, because the harness imports the DM package.
+The parent spec's `eval/` directory at the repo root becomes `dm/evals/`: the harness imports the DM package, and `evals` avoids reading as the builtin `eval`.
 
 ## 7. Testing the harness
 

@@ -25,6 +25,7 @@ agentbricks --profile <profile> deploy <name> --source .
 | `DurableAgentServer` construction and hook registration | `runtime/main.py` |
 | Browser and managed-state routes | `runtime/ui.py` |
 | Browser behavior | `ui/app.js` |
+| Evals: scenarios, harness, scorers and `make eval` | `evals/` |
 
 Shared adapters come from `databricks_agentkit.langgraph` and `databricks_agentkit.runtime`. Consult
 their docstrings for API details. Update the shared contract and relevant tests when integration
