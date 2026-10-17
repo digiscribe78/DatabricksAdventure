@@ -47,11 +47,13 @@ AFTER_CATALOG = ("aldric_forgives_silo", "grisle_outcome", "silo_wounds", "endin
 _SEAL_NAMES = {"seal_forge": "Forge", "seal_falls": "Falls", "seal_mines": "Mines"}
 
 
-def validate_flag(flag: str, value: str) -> str | None:
+def validate_flag(flag: str, value: str, flags: dict | None = None) -> str | None:
     if flag in CODE_FLAGS:
         return f"{flag} is set by the realm itself, not by the storyteller"
     if flag not in CANONICAL_FLAGS:
-        return f"unknown story flag {flag}; story flags are: {', '.join(f for f in CANONICAL_FLAGS if f not in CODE_FLAGS)}"
+        # Only this act's beats: the error reaches the model, and later acts' flags would spoil the story.
+        names = ", ".join(f for f, _, _ in BEATS[act(flags or {})])
+        return f"unknown story flag {flag}; this act's story flags are: {names}"
     allowed = CANONICAL_FLAGS[flag]
     if allowed and value not in allowed:
         return f"{flag} must be one of {', '.join(allowed)}"

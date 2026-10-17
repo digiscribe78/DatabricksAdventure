@@ -22,14 +22,27 @@ def test_tool_is_auto_registered():
     assert "search_lore" in {t.name for t in all_tools()}
 
 
-def test_scope_is_location_exits_and_global():
-    assert lore.scope("medallion-inn") == ["medallion-inn", "delta-crossing", "unity-archive", "global"]
+def test_scope_is_location_open_exits_and_global():
+    assert lore.scope("medallion-inn", {}) == ["medallion-inn", "delta-crossing", "global"]
+    assert lore.scope("medallion-inn", {"knows_cellar_route": "yes"}) == [
+        "medallion-inn", "delta-crossing", "unity-archive", "global"]
+
+
+def test_scope_hides_the_swamp_and_keep_until_the_catalog():
+    # The Swamp's lorebook names Silo's Keep: it must not leak to the Delta before has_catalog.
+    assert "data-swamp" not in lore.scope("delta-crossing", {})
+    assert "data-swamp" in lore.scope("delta-crossing", {"has_catalog": "yes"})
 
 
 def test_search_uses_state_location_not_model_input(calls):
     out = lore.search_lore.invoke({"query": "ferryman", "state": STATE})
     assert out == {"query": "ferryman", "passages": [PASSAGE]}
-    assert calls == [("ferryman", ["medallion-inn", "delta-crossing", "unity-archive", "global"])]
+    assert calls == [("ferryman", ["medallion-inn", "delta-crossing", "global"])]
+
+
+def test_search_scope_follows_the_story_flags_in_state(calls):
+    lore.search_lore.invoke({"query": "cellar", "state": {**STATE, "flags": {"knows_cellar_route": "yes"}}})
+    assert calls[-1][1] == ["medallion-inn", "delta-crossing", "unity-archive", "global"]
 
 
 def test_model_only_supplies_query():

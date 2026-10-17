@@ -56,7 +56,7 @@ def update_character(
 @tool
 def set_quest_flag(flag: str, value: str, state: State, tool_call_id: CallId) -> Command:
     """Record story progress as a snake_case flag, e.g. met_the_sweeper = yes or archive_door = forced."""
-    problem = validate_flag(flag, value) or check_flag(flag, value, state.get("flags") or {}, state.get("location_id", ""))
+    problem = validate_flag(flag, value, state.get("flags") or {}) or check_flag(flag, value, state.get("flags") or {}, state.get("location_id", ""))
     if problem:
         return reply("set_quest_flag", tool_call_id, {"error": problem})
     return _stage("set_quest_flag", tool_call_id, FlagChange, flag=flag, value=value)

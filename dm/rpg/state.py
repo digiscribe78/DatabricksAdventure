@@ -123,7 +123,7 @@ def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, lis
                 _downed(new, notes)
                 downed = True
         elif isinstance(ch, FlagChange):
-            problem = validate_flag(ch.flag, ch.value) or check_flag(ch.flag, ch.value, new.flags, new.location_id)
+            problem = validate_flag(ch.flag, ch.value, new.flags) or check_flag(ch.flag, ch.value, new.flags, new.location_id)
             if problem:
                 notes.append(f"ignored flag {ch.flag}: {problem}")
                 continue
@@ -135,8 +135,9 @@ def apply_changes(state: GameState, changes: list[dict]) -> tuple[GameState, lis
                     after = max(-3, min(3, npc.disposition + ch.delta))
                     notes.append(f"{npc.name}: {npc.disposition} → {after}")
                     npc.disposition = after
-                    if npc.npc_id == "marta-quill" and after >= 1:
+                    if npc.npc_id == "marta-quill" and after >= 1 and new.flags.get("marta_trusts_you") != "yes":
                         new.flags["marta_trusts_you"] = "yes"
+                        notes.append("Marta Quill now trusts you")
         elif isinstance(ch, MoveChange):
             here = LOCATIONS[new.location_id]
             barrier = here.barrier(ch.location_id, new.flags)

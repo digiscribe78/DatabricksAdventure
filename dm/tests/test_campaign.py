@@ -19,6 +19,15 @@ def test_validate_flag():
     assert CODE_FLAGS == {"times_downed", "marta_trusts_you", "defeated_by_silo"}
 
 
+def test_unknown_flag_lists_only_this_acts_flags():
+    # The error goes to the model: it must not advertise Act 3's beats (the Catalog, forgiveness) in Act 1.
+    one = validate_flag("met_marta", "yes", {})
+    assert "unknown story flag" in one and "vowed_to_find_aldric" in one
+    assert "aldric_forgives_silo" not in one and "has_catalog" not in one
+    three = validate_flag("met_marta", "yes", {"has_catalog": "yes"})
+    assert "aldric_forgives_silo" in three
+
+
 def test_acts():
     assert act({}) == 1
     assert act({"spoke_with_aldric": "yes"}) == 2

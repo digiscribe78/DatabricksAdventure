@@ -14,9 +14,14 @@ NUM_RESULTS = 4
 COLUMNS = ["chunk_text", "source", "page", "doc_type", "location_id"]
 
 
-def scope(location_id: str) -> list[str]:
-    """Lore visible from a location: its own, its neighbours' (rumours travel) and the global books."""
-    exits = list(LOCATIONS[location_id].exits) if location_id in LOCATIONS else []
+def scope(location_id: str, flags: dict) -> list[str]:
+    """Lore visible from a location: its own, its open neighbours' (rumours travel) and the global books.
+
+    Gated neighbours stay hidden until their gate opens, so no lorebook spoils a place the story hasn't
+    reached (the Swamp's book names Silo's Keep).
+    """
+    loc = LOCATIONS.get(location_id)
+    exits = [e for e in loc.exits if loc.barrier(e, flags) is None] if loc else []
     return [location_id, *exits, "global"]
 
 
@@ -54,7 +59,7 @@ def search_lore(query: str, state: Annotated[dict, InjectedState]) -> dict:
     such as "the ferryman at the Delta Crossing". Stay consistent with what it returns.
     """
     try:
-        passages = SEARCH(query, scope(state.get("location_id", "")))
+        passages = SEARCH(query, scope(state.get("location_id", ""), state.get("flags") or {}))
     except Exception as e:  # noqa: BLE001 - lore outages must not break the turn
         return {"error": f"lore unavailable: {e}"}
     return {"query": query, "passages": passages}
