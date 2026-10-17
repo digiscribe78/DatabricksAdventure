@@ -1,7 +1,8 @@
 """make memory-pipeline: exactly one Dreamer, dm-dreamer, distilling the transcript store.
 
 A pipeline's session store can't be changed in place, so one left on the checkpointer's store
-(msgpack blobs it can't read) is deleted and recreated.
+(msgpack blobs it can't read) is deleted and recreated. No --model: the service ignores it on create
+and rejects it on update (2026-10-17), so distilling uses the platform's default model.
 """
 
 import json
@@ -12,7 +13,6 @@ from pathlib import Path
 from devtools.grants import _run
 
 DISPLAY_NAME = "dm-dreamer"
-MODEL = "system.ai.claude-sonnet-4-5"
 INSTRUCTIONS = "@../content/dreamer-instructions.md"
 
 
@@ -38,11 +38,11 @@ def main(argv: list[str] | None = None) -> int:
     listed = WorkspaceClient(profile=profile).api_client.do("GET", "/api/2.0/agents/memory-pipelines")
     delete, create = plan(listed.get("memory_pipelines") or [], memory_store, transcripts)
     for name in delete:
-        _run(["agentbricks", "--profile", profile, "memory", "pipeline", "delete", name])
+        _run(["agentbricks", "--profile", profile, "memory", "pipeline", "delete", name, "--yes"])
         print(f"deleted {name} (it read the checkpoint store)")
     if create:
         _run(["agentbricks", "--profile", profile, "memory", "pipeline", "create", "--memory-store", memory_store,
-              "--session-store", transcripts, "--display-name", DISPLAY_NAME, "--model", MODEL,
+              "--session-store", transcripts, "--display-name", DISPLAY_NAME,
               "--instructions", INSTRUCTIONS, "--trigger", "scheduled"])
         print(f"created {DISPLAY_NAME} on {transcripts}")
     else:

@@ -59,10 +59,9 @@ and returns the new entries' `content`.
 - `--session-store <transcripts store>`;
 - `--memory-store <memory store>`;
 - `--trigger scheduled`;
-- `--model system.ai.claude-sonnet-4-5`;
 - `--instructions @../content/dreamer-instructions.md`.
 
-A pipeline's session store can't be changed with `update`, so any existing pipeline on the old store is deleted first and then recreated. This is implemented in `devtools/memory_pipeline.py` and replaces the inline shell in the Makefile.
+A pipeline's session store can't be changed with `update`, so any existing pipeline on the old store is deleted first and then recreated. The model can't be chosen: on 2026-10-17 the service ignored `--model` on create and rejected it on update ("unsupported update path: model"), so distilling uses the platform's default model. `scheduled` runs about every 24 hours. This is implemented in `devtools/memory_pipeline.py` and replaces the inline shell in the Makefile.
 
 ## 6. Recall through the SDK
 
