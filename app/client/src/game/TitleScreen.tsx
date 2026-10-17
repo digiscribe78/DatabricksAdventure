@@ -9,9 +9,10 @@ const ARCHETYPES: { id: Archetype; label: string; blurb: string }[] = [
   { id: 'bard', label: 'Bard', blurb: 'Charm +3 · 14 HP · rapier, lute, letter of introduction' },
 ];
 
-export function TitleScreen({ onStart, onTrack }: {
+export function TitleScreen({ onStart, onTrack, onGuide }: {
   onStart: (sessionId: string, newGame?: { name: string; archetype: Archetype }) => void;
   onTrack: (track: string) => void;
+  onGuide: (page?: string) => void;
 }) {
   const [name, setName] = useState('');
   const [archetype, setArchetype] = useState<Archetype>('warrior');
@@ -33,6 +34,7 @@ export function TitleScreen({ onStart, onTrack }: {
         <img src={TITLE_IMAGE} alt="An adventurer looks out over the Kingdom of Sparkia at dusk"
              onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
       </div>
+      <p className="begin"><button className="bbtn inline" onClick={() => onGuide()}>📖 Guide: how this game is built</button></p>
       <h1 className="title8">The Kingdom of Sparkia</h1>
       <p className="subtitle">A Databricks Adventure</p>
       <div className="frame panel">

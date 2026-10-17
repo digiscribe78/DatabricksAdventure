@@ -158,3 +158,12 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 .end-screen .note { opacity: 0.75; font-style: italic; }
 .end-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .end-actions a { color: var(--gold-hi); }
+.guide-overlay { position: fixed; inset: 0; background: rgba(10, 6, 16, 0.8); display: flex; align-items: center; justify-content: center; z-index: 20; }
+.guide { width: min(960px, 94vw); max-height: 86vh; overflow: auto; }
+.guide-head { display: flex; justify-content: space-between; align-items: center; }
+.guide-body { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
+.guide-list { list-style: none; padding: 0; margin: 0; }
+.guide-list .q { text-align: left; width: 100%; padding: 3px 0; }
+.guide-list .q.on { color: var(--gold-hi); }
+.guide-btn { margin: 0 0 8px; }
+@media (max-width: 700px) { .guide-body { grid-template-columns: 1fr; } }

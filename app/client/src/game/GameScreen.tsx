@@ -103,7 +103,8 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack, onGuide }: {
         </div>
       </main>
       <div className="side">
-        <ScryingGlass view={view} open={glassOpen} onToggle={() => setGlassOpen(!glassOpen)} />
+        <button className="bbtn inline guide-btn" onClick={() => onGuide()}>📖 Guide</button>
+        <ScryingGlass view={view} open={glassOpen} onToggle={() => setGlassOpen(!glassOpen)} onGuide={onGuide} />
         <div className="frame sheet">
           {c ? (
             <>

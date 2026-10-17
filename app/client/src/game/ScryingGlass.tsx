@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { EXPLAINERS, GLYPHS, GRAPH } from './explainers';
 import type { GameView } from './state';
 
-function Explain({ id }: { id: string }) {
+function Explain({ id, onGuide }: { id: string; onGuide: (page?: string) => void }) {
   const [open, setOpen] = useState(false);
   const e = EXPLAINERS[id];
   if (!e) return null;
@@ -12,13 +12,16 @@ function Explain({ id }: { id: string }) {
       {open && (
         <span className="explain-box">
           <strong>{e.title}.</strong> {e.text} <a href={e.docs} target="_blank" rel="noreferrer">Docs ↗</a>
+          {e.guide && <button className="q" onClick={() => onGuide(e.guide)}>More in the Guide ▸</button>}
         </span>
       )}
     </span>
   );
 }
 
-export function ScryingGlass({ view, open, onToggle }: { view: GameView; open: boolean; onToggle: () => void }) {
+export function ScryingGlass({ view, open, onToggle, onGuide }: {
+  view: GameView; open: boolean; onToggle: () => void; onGuide: (page?: string) => void;
+}) {
   if (!open) {
     return <button className="frame glass-tab" onClick={onToggle}>✦ Scrying Glass ◂</button>;
   }
@@ -33,7 +36,7 @@ export function ScryingGlass({ view, open, onToggle }: { view: GameView; open: b
         {GRAPH.map((n) => (
           <span key={n} className={`pill ${view.nodes.includes(n) ? 'lit' : ''} ${view.busy && last === n ? 'live' : ''}`}>
             {n}
-            <Explain id={n} />
+            <Explain id={n} onGuide={onGuide} />
           </span>
         ))}
       </div>
@@ -41,7 +44,7 @@ export function ScryingGlass({ view, open, onToggle }: { view: GameView; open: b
         {view.busy && <li className="pending">The DM ponders… ({view.nodes.length} steps so far)</li>}
         {view.events.map((e) => (
           <li key={`${e.type}:${e.summary}`}>
-            {GLYPHS[e.type] ?? '•'} {e.summary} <Explain id={e.type} />
+            {GLYPHS[e.type] ?? '•'} {e.summary} <Explain id={e.type} onGuide={onGuide} />
           </li>
         ))}
         {!view.busy && view.events.length === 0 && view.narration && <li>No tools this turn: pure narration.</li>}
