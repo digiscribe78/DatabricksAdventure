@@ -15,7 +15,7 @@ import psycopg
 from databricks_agentkit import workspace_client
 
 from rpg.state import GameState, NpcCard, NpcPresence
-from rpg.store import load_npc_cards
+from rpg.store import STAT_KEYS, load_npc_cards
 from rpg.world import START_LOCATION_ID, Character, new_character
 
 SCHEMA_SQL = (Path(__file__).resolve().parents[1] / "rpg" / "schema.sql").read_text()
@@ -78,6 +78,7 @@ class PostgresStore:
             self._write_inventory(conn, cid, c.inventory)
             conn.execute("INSERT INTO rpg.adventures (id, character_id, client_session_id) VALUES (%s, %s, %s)",
                          (session_id, cid, client_session_id))
+            conn.execute("INSERT INTO rpg.adventure_stats (adventure_id) VALUES (%s)", (session_id,))
         return self.load(session_id)
 
     def load(self, session_id):
@@ -132,6 +133,29 @@ class PostgresStore:
                              "ON CONFLICT (character_id, npc_id) DO UPDATE SET disposition = EXCLUDED.disposition",
                              (cid, npc.npc_id, npc.disposition))
             conn.execute("UPDATE rpg.adventures SET updated_at = now() WHERE id = %s", (session_id,))
+
+    def add_stats(self, session_id, counts):
+        # Column names come only from STAT_KEYS, never from input, so building the SQL is safe.
+        cols = [k for k in STAT_KEYS if counts.get(k)]
+        if not cols:
+            return
+        values = [int(counts[k]) for k in cols]
+        sets = ", ".join(f"{k} = rpg.adventure_stats.{k} + EXCLUDED.{k}" for k in cols)
+        with self._connect() as conn:
+            conn.execute(
+                f"INSERT INTO rpg.adventure_stats (adventure_id, since_start, {', '.join(cols)}) "
+                f"VALUES (%s, false, {', '.join(['%s'] * len(cols))}) "
+                f"ON CONFLICT (adventure_id) DO UPDATE SET {sets}, updated_at = now()",
+                (session_id, *values),
+            )
+
+    def stats(self, session_id):
+        with self._connect() as conn:
+            row = conn.execute(
+                f"SELECT {', '.join(STAT_KEYS)}, since_start FROM rpg.adventure_stats WHERE adventure_id = %s",
+                (session_id,),
+            ).fetchone()
+        return None if row is None else {**dict(zip(STAT_KEYS, row[:-1])), "since_start": row[-1]}
 
     def list_adventures(self, player_id):
         with self._connect() as conn:

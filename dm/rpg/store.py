@@ -8,6 +8,9 @@ import yaml
 from rpg.state import GameState, NpcCard, NpcPresence
 from rpg.world import START_LOCATION_ID, Character, new_character
 
+# The "what you just saw" counts kept per adventure (M8 end screen).
+STAT_KEYS = ("rolls", "attacks", "lore", "memories", "state_commits", "guardrails", "hints", "turns")
+
 
 class GameStore(Protocol):
     def create_adventure(self, session_id: str, player_id: str, name: str, archetype: str,
@@ -18,6 +21,8 @@ class GameStore(Protocol):
     def list_adventures(self, player_id: str) -> list[dict]: ...
     def delete_adventure(self, session_id: str) -> None: ...
     def seed_npcs(self, cards: list[NpcCard]) -> None: ...
+    def add_stats(self, session_id: str, counts: dict[str, int]) -> None: ...
+    def stats(self, session_id: str) -> dict | None: ...
 
 
 def load_npc_cards(directory: str | Path) -> list[NpcCard]:
@@ -39,6 +44,7 @@ class InMemoryStore:
             "player_id": player_id, "character": new_character(name, archetype).model_dump(),
             "location_id": START_LOCATION_ID, "flags": {}, "dispositions": {}, "status": "active",
             "client_session_id": client_session_id,
+            "stats": {**{k: 0 for k in STAT_KEYS}, "since_start": True},
         }
         return self.load(session_id)
 
@@ -66,6 +72,16 @@ class InMemoryStore:
         a["location_id"] = state.location_id
         a["flags"].update(state.flags)
         a["dispositions"].update({n.npc_id: n.disposition for n in state.npcs})
+
+    def add_stats(self, session_id, counts):
+        a = self._adventures[session_id]
+        st = a.setdefault("stats", {**{k: 0 for k in STAT_KEYS}, "since_start": False})
+        for k in STAT_KEYS:
+            st[k] += int(counts.get(k, 0))
+
+    def stats(self, session_id):
+        a = self._adventures.get(session_id)
+        return dict(a["stats"]) if a and "stats" in a else None
 
     def list_adventures(self, player_id):
         return [
