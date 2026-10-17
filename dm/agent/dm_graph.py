@@ -26,7 +26,7 @@ from langgraph.prebuilt import ToolNode
 
 from agent.guardrails import REFUSED_PLACEHOLDER, blocked_by, guardrail_event, refusal_line
 from agent.prompts import COMPOSE_SYSTEM, CONTINUE_CUE, OPENING_CUE, REFUSAL_SYSTEM, render_dm_system
-from rpg.campaign import game_over
+from rpg.campaign import finale_ending, game_over
 from rpg.state import GameState, apply_changes
 from rpg.store import GameStore
 from rpg.turn import ComposeOutput, TurnEvent, TurnOutput
@@ -277,7 +277,11 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         return "commit_state"
 
     def commit_state(state: DMState, config: RunnableConfig) -> dict:
-        staged = state.get("staged") or []
+        staged = list(state.get("staged") or [])
+        rolls = [r for m in _current_turn(state["messages"])
+                 if isinstance(m, ToolMessage) and m.name == "roll_check" and (r := _tool_result(m))]
+        if ending := finale_ending(state.get("flags") or {}, state["location_id"], rolls):
+            staged.append({"kind": "flag", "flag": "ending", "value": ending})  # code records the finale
         if not staged or state.get("reason_failed") or state.get("guardrail"):  # an aborted or refused turn commits nothing
             return {}
         try:

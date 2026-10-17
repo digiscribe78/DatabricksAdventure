@@ -111,14 +111,36 @@ def _progress(flags: dict, location_id: str) -> str:
         return ("Act 3, The Lost Catalog. You carry the Lost Catalog. Next: take the Sweeper's downstream ferry "
                 "from the Delta Crossing to the Data Swamp, and on to Silo's Keep.")
     wounds = flags.get("silo_wounds", "0")
-    wits_dc = 12 if _yes(flags, "forge_regret_shared") else 16
-    if _yes(flags, "aldric_forgives_silo"):
-        charm_dc = 12 if (_yes(flags, "marta_trusts_you") or _yes(flags, "echo_saw_past_life")) else 16
-        charm = f"Charm DC {charm_dc}"
-    else:
-        charm = "Charm: not yet possible (Aldric has not forgiven Silo)"
+    dcs = finale_dcs(flags)
+    charm = f"Charm DC {dcs['charm']}" if dcs["charm"] else "Charm: not yet possible (Aldric has not forgiven Silo)"
     return (f"Finale: confront Lord Silo. Might: wound him three times (wounds {wounds}/3; set silo_wounds after each hit). "
-            f"Wits: present the Catalog's proof, Wits DC {wits_dc}. {charm}. When he yields, set ending.")
+            f"Wits: present the Catalog's proof, Wits DC {dcs['wits']}. {charm}. Roll the check at that DC; "
+            "when he yields, the realm records the ending itself, so narrate it and do not set ending.")
+
+
+def finale_dcs(flags: dict) -> dict:
+    """The Wits and Charm difficulties to make Lord Silo yield (Charm is None until Aldric forgives him)."""
+    wits = 12 if _yes(flags, "forge_regret_shared") else 16
+    charm = None
+    if _yes(flags, "aldric_forgives_silo"):
+        charm = 12 if (_yes(flags, "marta_trusts_you") or _yes(flags, "echo_saw_past_life")) else 16
+    return {"wits": wits, "charm": charm}
+
+
+def finale_ending(flags: dict, location_id: str, rolls: list[dict]) -> str | None:
+    """The ending a turn's dice earned in Silo's Keep: a Wits or Charm success at the finale's DC, else None.
+
+    Code decides, like the Might path (the third wound) and defeat, so the ending never depends on the
+    model remembering to set a flag.
+    """
+    if location_id != "silos-keep" or not _yes(flags, "has_catalog") or game_over(flags):
+        return None
+    dcs = finale_dcs(flags)
+    for r in rolls:
+        need = dcs.get(r.get("stat"))
+        if need is not None and r.get("success") and int(r.get("dc", 0)) >= need:
+            return r["stat"]
+    return None
 
 
 def game_over(flags: dict) -> str | None:
