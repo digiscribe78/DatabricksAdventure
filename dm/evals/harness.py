@@ -113,6 +113,9 @@ def play_turn(s: Scenario, llm: Any) -> dict:
 def make_predict_fn(scenarios: list[Scenario], llm: Any) -> Callable[[str, str], dict]:
     by_id = {s.id: s for s in scenarios}
 
+    # Traced here, not left to evaluate(): with LangChain autolog on, the graph would otherwise make the
+    # root trace itself and evaluate() would stop wrapping this call, leaving no span for the details.
+    @mlflow.trace(name="dm_turn")
     def predict(scenario_id: str, player_input: str) -> dict:  # noqa: ARG001 - the judges read player_input
         result = play_turn(by_id[scenario_id], llm)
         # evaluate() first calls this once untraced to validate it, so there may be no span.

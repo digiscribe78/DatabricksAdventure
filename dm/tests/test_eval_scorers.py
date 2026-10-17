@@ -77,3 +77,19 @@ def test_code_scorers_read_details_from_the_trace(local_mlflow):
     row = out.result_df.iloc[0]
     assert row["story_bookkeeping/value"] == True  # noqa: E712 - may be numpy.bool_
     assert row["schema_valid/value"] == True  # noqa: E712
+
+
+def test_details_survive_langchain_autolog(local_mlflow):
+    # make eval turns on LangChain autolog; the graph's own trace must not displace the harness's span.
+    s = Scenario.model_validate({"id": "s", "category": "lore", "state": {"location_id": "medallion-inn"},
+                                 "input": "Hello.", "expect": {"no_tools": ["update_character"]}})
+    prose = ComposeOutput(narration=WORDS, choices=["Ask Marta", "Leave"])
+    model = ScriptedModel(replies=[AIMessage(content="ok")] * 2, structured=[prose, prose])
+    mlflow.langchain.autolog()
+    try:
+        out = mlflow.genai.evaluate(
+            data=[{"inputs": {"scenario_id": "s", "player_input": s.input}, "expectations": s.expect.model_dump(exclude_defaults=True)}],
+            predict_fn=make_predict_fn([s], model), scorers=CODE_SCORERS)
+    finally:
+        mlflow.langchain.autolog(disable=True)
+    assert out.result_df.iloc[0]["tool_selection/value"] == True  # noqa: E712
