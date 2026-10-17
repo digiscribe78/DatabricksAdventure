@@ -126,6 +126,13 @@ def test_marta_trust_sets_code_flag():
     assert s.flags.get("marta_trusts_you") == "yes"
 
 
+def test_marta_trust_is_noted_once_so_the_glass_shows_it():
+    s, notes = apply_changes(state(), [{"kind": "disposition", "npc_id": "marta-quill", "delta": 1}])
+    assert "Marta Quill now trusts you" in notes
+    _, again = apply_changes(s, [{"kind": "disposition", "npc_id": "marta-quill", "delta": 1}])
+    assert "Marta Quill now trusts you" not in again
+
+
 def test_story_prerequisite_failures_are_ignored_with_a_note():
     s, notes = apply_changes(state(), [{"kind": "flag", "flag": "has_catalog", "value": "yes"}])
     assert "has_catalog" not in s.flags and any("ignored" in n and "Unity Archive" in n for n in notes)
