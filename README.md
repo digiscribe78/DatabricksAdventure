@@ -4,7 +4,7 @@ A retro text RPG set in the Kingdom of Sparkia, where the Dungeon Master is an A
 
 It's built to teach agent concepts on Databricks by playing.
 
-> 🗺️ Playable: a three-act adventure in the Kingdom of Sparkia (see the [story bible](docs/superpowers/specs/2026-10-17-campaign-design.md)). Art and music coming next.
+> 🗺️ Playable: a three-act adventure in the Kingdom of Sparkia (see the [story bible](docs/superpowers/specs/2026-10-17-campaign-design.md)). Every location has Amiga-style scene art and its own chiptune theme (prompts in [content/ART.md](content/ART.md) and [content/MUSIC.md](content/MUSIC.md)).
 
 ## Deploy (work in progress)
 
