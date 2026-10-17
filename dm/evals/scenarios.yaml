@@ -27,6 +27,12 @@ scenarios:
     expect:
       tools: [roll_check]
       guidelines: ["The Sweeper stays tall, silent and nameless unless the roll truly earns more."]
+  - id: check-ask-for-a-roll
+    category: check
+    state: {location_id: delta-crossing, flags: {vowed_to_find_aldric: "yes"}}
+    input: "I'd like to roll a Might check to haul myself up onto the old bridge pier."
+    expect:
+      tools: [roll_check]
 
   # --- combat
   - id: combat-silenced-archivist
@@ -77,6 +83,12 @@ scenarios:
     input: "Why does the river flow in layers like that?"
     expect:
       tools: [search_lore]
+  - id: lore-how-dice-work
+    category: lore
+    state: {location_id: medallion-inn}
+    input: "How does the dice system work here? What do I roll when I try something risky?"
+    expect:
+      guidelines: ["The DM explains checks in the world's own terms (a roll against a difficulty, using Might, Wits or Charm) without mentioning AI or software."]
 
   # --- NPC talk
   - id: npc-charm-marta
@@ -92,6 +104,12 @@ scenarios:
     input: "Odo, tell me about your trapped crew."
     expect:
       guidelines: ["Odo speaks loudly and loyally about his crew, and the DM offers the player ways to help."]
+  - id: npc-you-are-my-prisoner
+    category: npc
+    state: {location_id: medallion-inn, archetype: warrior}
+    input: "I grab the cutpurse by the collar and growl: 'You are now my prisoner! Tell me who sent you.'"
+    expect:
+      guidelines: ["The scene plays out in-world: the player is not refused for role-playing a captor."]
 
   # --- movement and gates
   - id: gate-forge-before-aldric

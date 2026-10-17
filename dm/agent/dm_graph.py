@@ -24,11 +24,13 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
-from agent.prompts import COMPOSE_SYSTEM, CONTINUE_CUE, OPENING_CUE, render_dm_system
+from agent.guardrails import REFUSED_PLACEHOLDER, blocked_by, guardrail_event, refusal_line
+from agent.prompts import COMPOSE_SYSTEM, CONTINUE_CUE, OPENING_CUE, REFUSAL_SYSTEM, render_dm_system
 from rpg.campaign import game_over
 from rpg.state import GameState, apply_changes
 from rpg.store import GameStore
 from rpg.turn import ComposeOutput, TurnEvent, TurnOutput
+from rpg.world import LOCATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +68,7 @@ class DMState(TypedDict, total=False):
     reason_failed: bool
     memories: list[str]
     memories_new: bool
+    guardrail: str | None
 
 
 def _game(state: DMState) -> GameState:
@@ -197,6 +200,28 @@ def fallback_turn(
     return TurnOutput.from_compose(fallback, location_id, events)
 
 
+def compose_refusal(
+    llm: Any,
+    earlier: list[AnyMessage],
+    location_id: str,
+    policy: str,
+    previous_choices: list[str] | None,
+) -> TurnOutput:
+    """An in-world refusal written from the earlier turns only: the blocked words are never sent."""
+    events = [guardrail_event(policy)]
+    place = LOCATIONS[location_id].name if location_id in LOCATIONS else "this place"
+    prompt = [SystemMessage(REFUSAL_SYSTEM.format(place=place)),
+              *_context([*earlier, HumanMessage(REFUSED_PLACEHOLDER)])]
+    try:
+        result = llm.with_structured_output(ComposeOutput).invoke(prompt)
+        prose = result if isinstance(result, ComposeOutput) else ComposeOutput.model_validate(result)
+        return TurnOutput.from_compose(prose, location_id, events)
+    except Exception:  # noqa: BLE001 - a failed or blocked refusal falls back to the canned line
+        logger.warning("refusal compose failed", exc_info=True)
+    canned = ComposeOutput(narration=refusal_line(policy), choices=previous_choices or FALLBACK_CHOICES)
+    return TurnOutput.from_compose(canned, location_id, events)
+
+
 def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *, store: GameStore,
                    recall: Callable[[str], list[str]] | None = None):
     reasoner = llm.bind_tools(tools)
@@ -211,7 +236,8 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         game = store.load(_sid(config))
         if game is None:
             raise LookupError(f"no adventure for session {_sid(config)}")
-        update = {**_game_update(game), "staged": None, "state_summaries": [], "commit_failed": False}
+        update = {**_game_update(game), "staged": None, "state_summaries": [], "commit_failed": False,
+                  "guardrail": None}
         messages = state.get("messages") or []
         if not messages or not isinstance(messages[-1], HumanMessage):
             resumed = any(isinstance(m, HumanMessage) for m in messages)
@@ -234,10 +260,14 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
     def dm_reason(state: DMState) -> dict:
         system = SystemMessage(render_dm_system(_game(state), state.get("memories") or []))
         try:
-            return {"messages": [reasoner.invoke([system, *_context(state["messages"])])]}
+            response = reasoner.invoke([system, *_context(state["messages"])])
         except Exception:  # noqa: BLE001 - the world never breaks character; compose falls back
             logger.warning("dm_reason model call failed", exc_info=True)
             return {"reason_failed": True}
+        if (block := blocked_by(response)) is not None:
+            logger.info("guardrail %s refused the turn", block.policy)
+            return {"guardrail": block.policy}  # the block text never enters the history
+        return {"messages": [response]}
 
     def route(state: DMState) -> str:
         last = state["messages"][-1]
@@ -248,7 +278,7 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
 
     def commit_state(state: DMState, config: RunnableConfig) -> dict:
         staged = state.get("staged") or []
-        if not staged or state.get("reason_failed"):  # an aborted turn commits nothing
+        if not staged or state.get("reason_failed") or state.get("guardrail"):  # an aborted or refused turn commits nothing
             return {}
         try:
             new, summaries = apply_changes(_game(state), staged)
@@ -266,14 +296,21 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
     def compose(state: DMState) -> dict:
         messages = state["messages"]
         previous = (state.get("turn") or {}).get("choices")
-        events = turn_events(messages)
-        if state.get("commit_failed") or state.get("reason_failed"):
+        placeholder: list[AnyMessage] = []
+        if state.get("guardrail"):
+            current = _current_turn(messages)
+            turn = compose_refusal(llm, messages[: len(messages) - len(current)], state["location_id"],
+                                   state["guardrail"], previous)
+            removals = [RemoveMessage(id=m.id) for m in current]
+            placeholder = [HumanMessage(REFUSED_PLACEHOLDER)]
+        elif state.get("commit_failed") or state.get("reason_failed"):
             turn = fallback_turn(state["location_id"], [], previous)
             if state.get("commit_failed"):
                 turn.narration = COMMIT_FAILED_NARRATION
             removals = [RemoveMessage(id=m.id) for m in _current_turn(messages)
                         if not isinstance(m, HumanMessage)]
         else:
+            events = turn_events(messages)
             if state.get("memories_new"):
                 n = len(state["memories"])
                 events.insert(0, TurnEvent(type="memory", summary=f"Memory: recalled {n} thing{'s' if n != 1 else ''} about you",
@@ -291,8 +328,8 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
             ]
         turn.game_over = game_over(state.get("flags") or {})
         text = turn.narration + "\n\n" + "\n".join(f"- {c}" for c in turn.choices)
-        return {"turn": turn.model_dump(), "messages": [*removals, AIMessage(content=text)],
-                "reason_failed": False, "commit_failed": False}
+        return {"turn": turn.model_dump(), "messages": [*removals, *placeholder, AIMessage(content=text)],
+                "reason_failed": False, "commit_failed": False, "guardrail": None}
 
     builder = StateGraph(DMState)
     builder.add_node("load_state", load_state)

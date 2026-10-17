@@ -80,3 +80,13 @@ def test_predict_fn_returns_narration_and_works_outside_a_trace():
     model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
     predict = make_predict_fn([scenario()], model)
     assert predict("s1", "I promise.") == {"narration": PROSE.narration, "choices": PROSE.choices}
+
+
+def test_play_turn_records_the_guardrail_and_category():
+    block = AIMessage(content="This request was blocked by the 'block_jailbreak' service policy.",
+                      response_metadata={"finish_reason": "content_filter"})
+    model = ScriptedModel(replies=[block], structured=[PROSE])
+    out = play_turn(scenario(category="jailbreak"), model)
+    assert out["guardrail"] == "block_jailbreak" and out["category"] == "jailbreak"
+    model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[PROSE])
+    assert play_turn(scenario(), model)["guardrail"] is None
