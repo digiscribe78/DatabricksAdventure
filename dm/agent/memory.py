@@ -1,14 +1,13 @@
 """Recall what the DM remembers about a player, from the managed memory store (Lakebase-backed).
 
-Uses only public agentkit names: the deployed runtime may resolve a different databricks-agentkit
-than local dev, and private module internals have changed between versions.
+Uses the public AgentKit SDK (`AgentKitClient`), as the platform's memory tutorial does: the deployed
+runtime may resolve a different databricks-agentkit than local dev, so no private module internals.
 """
 
 import os
 
 from databricks_agentkit import workspace_client
 
-AGENTS_API = "/api/2.0/agents"
 RECALL_QUERY = "the player's past adventures, choices, promises and relationships"
 
 
@@ -17,14 +16,15 @@ def resolve_memory_store(store: str | None = None) -> str | None:
     return store or os.getenv("AGENT_MEMORY_STORE") or None
 
 
-def _api():
-    return workspace_client().api_client
+def _client():
+    from databricks_agentkit import AgentKitClient
+
+    return AgentKitClient(workspace_client())
 
 
 def recall_memories(actor: str, query: str = RECALL_QUERY, limit: int = 5) -> list[str]:
     store = resolve_memory_store()
     if not store:
         return []
-    data = _api().do("POST", f"{AGENTS_API}/memory-stores/{store}/entries:search",
-                     body={"actor_id": actor, "query": query, "limit": limit})
-    return [e.get("content", "") for e in data.get("managed_memory_entries") or [] if e.get("content")]
+    results = _client().memory_stores.get(store).search(actor_id=actor, query=query, limit=limit)
+    return [r.memory.content for r in results if getattr(r.memory, "content", None)]
