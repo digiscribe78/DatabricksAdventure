@@ -8,7 +8,7 @@ VOLUME = dbfs:/Volumes/$(CATALOG)/$(SCHEMA)/lore
 INDEX = $(CATALOG).$(SCHEMA).lore_index
 BUNDLE = databricks bundle --profile $(PROFILE) --var catalog=$(CATALOG) --var schema=$(SCHEMA)
 
-.PHONY: content deploy ingest db deploy-agent deploy-app app-dev grant-player memory-pipeline test eval destroy check-vars
+.PHONY: content deploy ingest db deploy-agent deploy-app app-dev grant-player memory-pipeline test eval guardrails-check destroy check-vars
 
 check-vars:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
@@ -71,6 +71,9 @@ test:
 eval: check-vars
 	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) LORE_INDEX=$(INDEX) MLFLOW_DISABLE_AGENT_HINT=1 \
 		uv run python -m evals.run
+
+guardrails-check: check-vars
+	cd dm && uv run python -m devtools.guardrails_check $(PROFILE) $(CATALOG) $(SCHEMA)
 
 destroy: check-vars
 	-cd app && databricks bundle destroy --auto-approve --profile $(PROFILE)

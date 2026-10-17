@@ -103,6 +103,16 @@ def grant_warehouse(w, warehouse_id: str, sp: str) -> None:
         WarehouseAccessControlRequest(service_principal_name=sp, permission_level=WarehousePermissionLevel.CAN_USE)])
 
 
+def model_service_grant_body(sp: str) -> dict:
+    return {"changes": [{"principal": sp, "add": ["EXECUTE"]}]}
+
+
+def grant_model_service(profile: str, full_name: str, sp: str, run=_run) -> None:
+    """EXECUTE lets the DM query its guarded model service (the privilege account users hold on system.ai)."""
+    run(["databricks", "grants", "update", "model_service", full_name,
+         "--json", json.dumps(model_service_grant_body(sp)), "--profile", profile])
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 5:
@@ -123,6 +133,10 @@ def main(argv: list[str] | None = None) -> int:
         grant_warehouse(w, warehouse_id, sp)
     except Exception as e:  # noqa: BLE001
         failures.append(f"warehouse CAN_USE: {e}")
+    try:
+        grant_model_service(profile, f"{catalog}.{schema}.dm_model", sp)
+    except RuntimeError as e:
+        failures.append(f"model service EXECUTE: {e}")
     for f in failures:
         print(f"GRANT FAILED: {f}", file=sys.stderr)
     print(f"service principal {sp}: game-db attached; {len(failures)} grant failure(s)")

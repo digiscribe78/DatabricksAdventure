@@ -13,8 +13,9 @@ WAREHOUSE=$(databricks experimental aitools tools get-default-warehouse --profil
 echo "warehouse: $WAREHOUSE"
 cd "$ROOT/dm"
 DATABRICKS_CONFIG_PROFILE="$PROFILE" uv run python -m devtools.tracing "$CATALOG" "$SCHEMA" "$WAREHOUSE"
+DATABRICKS_CONFIG_PROFILE="$PROFILE" uv run python -m devtools.model_service "$PROFILE" "$CATALOG" "$SCHEMA"
 uv run python -m devtools.build "$ROOT/dm" "$OUT" \
-  "MLFLOW_TRACING_SQL_WAREHOUSE_ID=$WAREHOUSE" "LORE_INDEX=$CATALOG.$SCHEMA.lore_index" "LAKEBASE_ENDPOINT=$EP"
+  "MLFLOW_TRACING_SQL_WAREHOUSE_ID=$WAREHOUSE" "LORE_INDEX=$CATALOG.$SCHEMA.lore_index" "LAKEBASE_ENDPOINT=$EP" "DM_MODEL=$CATALOG.$SCHEMA.dm_model"
 (cd "$OUT" && agentbricks --profile "$PROFILE" deploy dm --allow-user-scope-update)
 LB_ENV=$("$ROOT/scripts/lakebase_env.sh" "$PROFILE")  # assigned first so a failure trips set -e
 eval "$LB_ENV"

@@ -110,3 +110,13 @@ def test_cli_errors_include_stderr(monkeypatch):
 
     with pytest.raises(RuntimeError, match="App not found"):
         grants._cli("p", "apps", "get", "nope")
+
+
+def test_model_service_grant_is_execute_for_the_dm():
+    from devtools.grants import grant_model_service, model_service_grant_body
+
+    assert model_service_grant_body(SP) == {"changes": [{"principal": SP, "add": ["EXECUTE"]}]}
+    calls = []
+    grant_model_service("p", "cat.sch.dm_model", SP, run=lambda cmd: calls.append(cmd))
+    [cmd] = calls
+    assert cmd[:5] == ["databricks", "grants", "update", "model_service", "cat.sch.dm_model"]
