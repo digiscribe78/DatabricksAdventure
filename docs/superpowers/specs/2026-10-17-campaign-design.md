@@ -68,7 +68,7 @@ Each brief is the seed of its lorebook (written in M7, 300–450 words each, in 
    - *Spotlight:* state and saves (Lakebase), and NPC character cards.
    - Marta Quill keeps a ledger of every traveller who passed through. The ledger is the game's save, and Marta remembers you.
    - Rumours point to the river and the Archive.
-   - At disposition +2, Marta reveals the cellar's running water, which leads to the Archive's undercroft (`knows_cellar_route`). That's an alternative way into the Archive in Act 3.
+   - At disposition +2, Marta reveals the cellar's running water, which leads to the Archive's undercroft (`knows_cellar_route`). It's a shortcut between the inn and the Archive in either direction, open from whenever she trusts the player that far (it skips the Delta, so `saw_the_diversion` stays optional).
 
 2. **The Delta Crossing**
    - *Spotlight:* RAG (lore retrieval), and a nod to Delta Lake time travel.
