@@ -9,7 +9,7 @@ INDEX = $(CATALOG).$(SCHEMA).lore_index
 EVAL_MODEL ?= $(CATALOG).$(SCHEMA).dm_model
 BUNDLE = databricks bundle --profile $(PROFILE) --var catalog=$(CATALOG) --var schema=$(SCHEMA)
 
-.PHONY: content deploy ingest db deploy-agent deploy-app app-dev grant-player memory-pipeline test eval guardrails-check destroy check-vars
+.PHONY: content deploy ingest db deploy-agent deploy-app app-dev grant-player memory-pipeline test eval guardrails-check monitoring monitoring-stop destroy check-vars
 
 check-vars:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
@@ -68,6 +68,16 @@ test:
 eval: check-vars
 	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) LORE_INDEX=$(INDEX) DM_MODEL=$(EVAL_MODEL) MLFLOW_DISABLE_AGENT_HINT=1 \
 		uv run python -m evals.run
+
+# Live monitoring: the eval judges score a sample of real games in dm-traces (MLflow production monitoring, Beta).
+WAREHOUSE = $$(databricks experimental aitools tools get-default-warehouse --profile $(PROFILE) | tail -1 | tr -d '[:space:]')
+monitoring:
+	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
+	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) MLFLOW_DISABLE_AGENT_HINT=1 uv run python -m devtools.monitoring $(WAREHOUSE)
+
+monitoring-stop:
+	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
+	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) MLFLOW_DISABLE_AGENT_HINT=1 uv run python -m devtools.monitoring $(WAREHOUSE) stop
 
 guardrails-check: check-vars
 	cd dm && uv run python -m devtools.guardrails_check $(PROFILE) $(CATALOG) $(SCHEMA)
