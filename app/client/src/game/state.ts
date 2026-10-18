@@ -18,7 +18,7 @@ export const GameSnapshotSchema = z.object({
   }),
   location_id: z.string(),
   location_name: z.string(),
-  exits: z.array(z.object({ id: z.string(), name: z.string() })),
+  exits: z.array(z.object({ id: z.string(), name: z.string(), open: z.boolean().optional() })),
   flags: z.record(z.string(), z.string()),
   npcs: z.array(z.object({ npc_id: z.string(), name: z.string(), disposition: z.number() })),
   traces_url: z.string().nullable(),
