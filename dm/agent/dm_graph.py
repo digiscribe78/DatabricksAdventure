@@ -24,6 +24,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
+from agent.combat import ATTACK_NUDGE, declares_attack
 from agent.guardrails import REFUSED_PLACEHOLDER, blocked_by, guardrail_event, refusal_line
 from agent.prompts import COMPOSE_SYSTEM, CONTINUE_CUE, OPENING_CUE, REFUSAL_SYSTEM, render_dm_system
 from rpg.campaign import finale_ending, game_over
@@ -69,6 +70,7 @@ class DMState(TypedDict, total=False):
     memories: list[str]
     memories_new: bool
     guardrail: str | None
+    attack_nudged: bool
 
 
 def _game(state: DMState) -> GameState:
@@ -237,7 +239,7 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         if game is None:
             raise LookupError(f"no adventure for session {_sid(config)}")
         update = {**_game_update(game), "staged": None, "state_summaries": [], "commit_failed": False,
-                  "guardrail": None}
+                  "guardrail": None, "attack_nudged": False}
         messages = state.get("messages") or []
         if not messages or not isinstance(messages[-1], HumanMessage):
             resumed = any(isinstance(m, HumanMessage) for m in messages)
@@ -267,7 +269,24 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         if (block := blocked_by(response)) is not None:
             logger.info("guardrail %s refused the turn", block.policy)
             return {"guardrail": block.policy}  # the block text never enters the history
+        if _skipped_the_roll(state, response):
+            # A declared attack must roll: nudge once, and let the model pick the target or decline.
+            try:
+                nudged = reasoner.invoke([system, *_context(state["messages"]), SystemMessage(ATTACK_NUDGE)])
+            except Exception:  # noqa: BLE001 - fall back to the first answer
+                logger.warning("attack nudge failed", exc_info=True)
+                nudged = None
+            if nudged is not None and blocked_by(nudged) is None:
+                return {"messages": [nudged], "attack_nudged": True}
         return {"messages": [response]}
+
+    def _skipped_the_roll(state: DMState, response: AIMessage) -> bool:
+        if state.get("attack_nudged") or getattr(response, "tool_calls", None):
+            return False
+        turn = _current_turn(state["messages"])
+        player = turn[0].content if turn and isinstance(turn[0], HumanMessage) else ""
+        rolled = any(isinstance(m, ToolMessage) and m.name in ("resolve_attack", "enemy_attack") for m in turn)
+        return isinstance(player, str) and declares_attack(player) and not rolled
 
     def route(state: DMState) -> str:
         last = state["messages"][-1]
