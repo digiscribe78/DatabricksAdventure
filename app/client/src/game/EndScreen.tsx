@@ -1,3 +1,4 @@
+import { BUILT_ON } from './brand';
 import { endSummary, recapLines } from './ending';
 import type { GameView } from './state';
 
@@ -25,6 +26,8 @@ export function EndScreen({ view, onNewTale, onGuide }: { view: GameView; onNewT
       {view.game.distilled?.length ? (
         <ul className="recap">{view.game.distilled.map((m) => <li key={m}>· {m}</li>)}</ul>
       ) : <p className="note">The Dreamer will remember this tale tonight.</p>}
+      <p className="note built-on">Built on Databricks: {BUILT_ON.join(' · ')}.{' '}
+        <button className="q" onClick={() => onGuide()}>How it works ▸</button></p>
       <div className="end-actions">
         <button className="bbtn inline" onClick={onNewTale}>Begin a new tale ▸</button>
         <button className="bbtn inline" onClick={() => onGuide()}>📖 Open the Guide</button>

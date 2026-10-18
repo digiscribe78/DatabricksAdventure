@@ -1,4 +1,5 @@
 import { INTRO, UNDER_THE_HOOD } from './intro';
+import { PoweredBy } from './PoweredBy';
 import { TITLE_IMAGE } from './scene';
 
 export function IntroScreen({ onStart, onGuide }: { onStart: () => void; onGuide: (page?: string) => void }) {
@@ -10,6 +11,7 @@ export function IntroScreen({ onStart, onGuide }: { onStart: () => void; onGuide
       </div>
       <h1 className="title8">✦ The Kingdom of Sparkia ✦</h1>
       <p className="subtitle">A Databricks Adventure</p>
+      <p className="brand-row"><PoweredBy /></p>
       <p className="begin">
         <button className="bbtn inline" onClick={onStart}>Get started ▸</button>
         <button className="bbtn inline" onClick={() => onGuide()}>📖 Guide</button>

@@ -198,3 +198,6 @@ The same list is in the game: open the **📖 Guide** from the title screen or b
 ## Licence
 
 [Apache-2.0](LICENSE)
+
+The Databricks name and logo (`app/client/public/brand/`) are trademarks of Databricks, Inc. and are not covered
+by the Apache-2.0 licence; see [NOTICE](NOTICE).

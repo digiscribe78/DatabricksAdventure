@@ -3,6 +3,7 @@ import { playTurn, type TurnRequest } from './api';
 import { trackFor } from './music';
 import { EndScreen } from './EndScreen';
 import { MapPanel } from './MapPanel';
+import { PoweredBy } from './PoweredBy';
 import { inlineParts } from './format';
 import { revealHint } from './hints';
 import { ScryingGlass } from './ScryingGlass';
@@ -118,6 +119,7 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack, onGuide }: {
         </div>
         </div>
         <MapPanel view={view} onTravel={act} canTravel={canAct(view)} />
+        <PoweredBy corner />
       </div>
     </div>
   );

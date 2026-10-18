@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listAdventures, type Adventure } from './api';
+import { PoweredBy } from './PoweredBy';
 import { TITLE_IMAGE } from './scene';
 
 type Archetype = 'warrior' | 'mage' | 'bard';
@@ -39,6 +40,7 @@ export function TitleScreen({ onStart, onTrack, onGuide, onAbout }: {
         <button className="bbtn inline" onClick={() => onGuide()}>📖 Guide: how this game is built</button></p>
       <h1 className="title8">The Kingdom of Sparkia</h1>
       <p className="subtitle">A Databricks Adventure</p>
+      <p className="brand-row"><PoweredBy /></p>
       <div className="frame panel">
         <h2 className="title8 small">New adventure</h2>
         <input className="parchment-input" placeholder="Your name, traveller" value={name} maxLength={40}
