@@ -207,3 +207,13 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 
 .try-list { list-style: none; padding: 0; margin: 0; }
 .try-list li { margin: 0 0 8px; }
+
+/* "Powered by Databricks": quiet, never competing with the scene. The symbol is the official asset. */
+.brand-row { text-align: center; margin: 4px 0 8px; }
+.powered-by { display: inline-flex; align-items: center; gap: 6px; color: var(--parchment); opacity: 0.75; text-decoration: none;
+              font-family: 'VT323', monospace; font-size: 18px; }
+.powered-by:hover { opacity: 1; }
+.powered-by img { height: 18px; width: auto; }
+.powered-by.corner { align-self: flex-start; margin-top: 8px; font-size: 15px; opacity: 0.55; }  /* under the map */
+.powered-by.corner img { height: 15px; }
+.built-on { margin-top: 6px; }
