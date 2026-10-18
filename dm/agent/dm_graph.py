@@ -172,12 +172,16 @@ def _context(messages: list[AnyMessage]) -> list[AnyMessage]:
 # Some models refuse every form of structured output through AI Gateway (forced tool_choice and
 # response_format), e.g. Sonnet 5.5 and Opus 5.5, but call a tool when the prompt asks for it.
 _NO_STRUCTURED = "not supported for this model"
+# Models such as Sonnet 5.5 refuse a conversation that ends on the assistant's turn ("prefill").
+_WRITE_THE_TURN = "(Now write the player-facing result of this turn.)"
 _ASK_FOR_TOOL = ("\n\nReply by calling the ComposeOutput tool exactly once with the narration and choices; "
                  "write nothing outside the tool call.")
 
 
 def _compose(llm: Any, prompt: list[AnyMessage]) -> ComposeOutput:
     """Structured narration and choices, from structured output or, if the model refuses it, an un-forced tool call."""
+    if prompt and not isinstance(prompt[-1], HumanMessage):
+        prompt = [*prompt, HumanMessage(_WRITE_THE_TURN)]
     try:
         result = llm.with_structured_output(ComposeOutput).invoke(prompt)
     except Exception as e:  # noqa: BLE001 - only the model's refusal is handled here; the rest re-raise
@@ -290,7 +294,7 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         if _skipped_the_roll(state, response):
             # A declared attack must roll: nudge once, and let the model pick the target or decline.
             try:
-                nudged = reasoner.invoke([system, *_context(state["messages"]), SystemMessage(ATTACK_NUDGE)])
+                nudged = reasoner.invoke([SystemMessage(f"{system.content}\n\n{ATTACK_NUDGE}"), *_context(state["messages"])])
             except Exception:  # noqa: BLE001 - fall back to the first answer
                 logger.warning("attack nudge failed", exc_info=True)
                 nudged = None

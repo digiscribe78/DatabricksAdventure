@@ -48,3 +48,27 @@ def test_other_compose_errors_still_use_the_retry_and_fallback():
 
     model = ScriptedModel(replies=[AIMessage(content="ok")], structured=[RuntimeError("timeout"), RuntimeError("timeout")])
     assert run(make(model), "I look around.")["turn"]["narration"] == FALLBACK_NARRATION
+
+
+def test_compose_always_ends_with_a_user_message():
+    # The 5.5 models refuse "assistant prefill": the conversation must end with a user message.
+    from langchain_core.messages import HumanMessage
+
+    model = ScriptedModel(replies=[AIMessage(content="draft prose")], structured=[PROSE])
+    run(make(model), "I look around.")
+    assert isinstance(model.structured_calls[-1][-1], HumanMessage)
+
+
+def test_the_attack_nudge_rides_in_the_system_prompt_not_after_the_conversation():
+    from agent.combat import ATTACK_NUDGE
+    from agent.tools.dice import resolve_attack
+    from langchain_core.messages import SystemMessage
+    from tests.test_dm_graph import tc
+
+    swing = tc("resolve_attack", stat="might", target="rat", target_defence=10, damage_die=6, damage_bonus=2)
+    model = ScriptedModel(replies=[AIMessage(content="You swing."), AIMessage(content="", tool_calls=[swing]),
+                                   AIMessage(content="draft")], structured=[PROSE])
+    run(make(model, [resolve_attack]), "I attack the rat.")
+    nudged = model.reason_calls[1]
+    assert isinstance(nudged[0], SystemMessage) and ATTACK_NUDGE in nudged[0].content
+    assert not isinstance(nudged[-1], SystemMessage)

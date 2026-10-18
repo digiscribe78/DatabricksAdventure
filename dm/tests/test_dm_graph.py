@@ -417,7 +417,8 @@ def test_model_sees_at_most_history_turns_past_turns():
     for i in range(turns):
         run(graph, f"turn {i}")
     for sent in (model.reason_calls[-1], model.structured_calls[-1]):
-        humans = [m.content for m in sent if isinstance(m, HumanMessage)]
+        # compose ends with its own short cue (some models refuse assistant prefill); it isn't a turn
+        humans = [m.content for m in sent if isinstance(m, HumanMessage) and not m.content.startswith("(Now write")]
         assert len(humans) == HISTORY_TURNS + 1
         assert humans[-1] == f"turn {turns - 1}"
 
