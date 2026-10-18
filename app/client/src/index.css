@@ -171,3 +171,8 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 .guide-list .q.on { color: var(--gold-hi); }
 .guide-btn { margin: 0 0 8px; align-self: flex-start; }
 @media (max-width: 700px) { .guide-body { grid-template-columns: 1fr; } }
+
+.intro .panel p { margin: 0 0 10px; }
+.intro .hood { opacity: 0.85; }
+.intro .title-card img { aspect-ratio: auto; height: 28vh; object-position: 50% 55%; }  /* a wide crop, so Get started is on screen */
+.intro .title8 { margin: 4px 0; }
