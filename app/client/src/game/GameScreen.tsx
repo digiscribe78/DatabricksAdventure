@@ -104,6 +104,7 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack, onGuide }: {
         </div>
       </main>
       <div className="side">
+        <div className="side-top">
         <button className="bbtn inline guide-btn" onClick={() => onGuide()}>📖 Guide</button>
         <ScryingGlass view={view} open={glassOpen} onToggle={() => setGlassOpen(!glassOpen)} onGuide={onGuide} />
         <div className="frame sheet">
@@ -114,6 +115,7 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack, onGuide }: {
             </>
           ) : 'Reading your character sheet…'}
           <button className="bbtn inline quit" onClick={onQuit}>Leave ▸</button>
+        </div>
         </div>
         <MapPanel view={view} onTravel={act} canTravel={canAct(view)} />
       </div>

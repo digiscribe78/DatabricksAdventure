@@ -51,3 +51,8 @@ export const GUIDE: GuidePage[] = [
     tryThis: 'Press 💡 Hint', look: 'the 💡 line in the Scrying Glass, then `content/hints.yaml`',
     docs: `${D}/oltp/` },
 ];
+
+/** The README's "Things to try", in the game: one line per Guide page, each opening that page. */
+export function thingsToTry() {
+  return GUIDE.map((p) => ({ page: p.id, glyph: p.glyph, tryThis: p.tryThis, look: p.look }));
+}

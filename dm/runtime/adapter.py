@@ -17,7 +17,7 @@ from langgraph.types import Command
 
 from databricks_agentkit import InvocationContext
 from databricks_agentkit.langgraph.responses import checkpointed_messages
-from databricks_agentkit.langgraph.session_store import thread_config
+from databricks_agentkit.langgraph.session_store import checkpointer, thread_config
 from databricks_agentkit.runtime.auth import AuthError
 from rpg.hints import next_hint
 from rpg.store import STAT_KEYS
@@ -221,6 +221,23 @@ async def _distil(actor: str, session_id: str) -> list[str]:
         return []  # the next Dreamer run distils it instead
 
 
+def _resuming(payload: dict[str, Any], agent_input: Any) -> bool:
+    """A plain "continue": no new game, no player message, and not a recovery replay."""
+    return (payload.get("new_game") is None and isinstance(agent_input, dict)
+            and not agent_input.get("messages"))
+
+
+async def _saved_turn(session_id: str, actor: str) -> dict | None:
+    """The last turn stored in the adventure's checkpoint, or None (a new or pre-checkpoint save)."""
+    try:
+        saved = await checkpointer().aget_tuple(thread_config(session_id, actor))
+    except Exception:  # noqa: BLE001 - fall back to the DM narrating the resume
+        logger.warning("reading the saved turn failed", exc_info=True)
+        return None
+    turn = ((saved.checkpoint.get("channel_values") or {}).get("turn") if saved else None)
+    return turn if isinstance(turn, dict) and turn.get("narration") else None
+
+
 def turn_transcript(agent_input: Any, turn: dict) -> tuple[str | None, str]:
     """What the transcript records for a turn: the player's words (or the placeholder) and the reply."""
     messages = agent_input.get("messages") if isinstance(agent_input, dict) else None
@@ -244,6 +261,17 @@ async def _invoke_agent(
     if payload.get("list_adventures") is True:
         return {"adventures": agent_module.game_store().list_adventures(actor), "status": "completed"}
     _ensure_adventure(payload, session_id, actor)
+    # The save first (a quick Lakebase read), so the scene, sheet and map show while the DM thinks.
+    if (early := agent_module.game_store().load(session_id)) is not None:
+        await context.emit({"type": "game", "game": game_snapshot(early)})
+    if _resuming(payload, agent_input) and (saved := await _saved_turn(session_id, actor)) is not None:
+        # Continuing a save: show the last turn from the checkpoint, with no model call.
+        snapshot = game_snapshot(early) if early is not None else None
+        if snapshot is not None:
+            stats = _read_stats(session_id)
+            snapshot["stats"] = None if stats is _UNREAD else stats
+        await context.emit({"type": "turn", "turn": saved})
+        return {"output": [], "turn": saved, "game": snapshot, "status": "completed"}
     user_auth = auth is not None
     run_kwargs = {"workspace_client_for": auth.client_for} if user_auth else {}
     model = payload.get("model")
