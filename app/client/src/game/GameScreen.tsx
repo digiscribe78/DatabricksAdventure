@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { playTurn, type TurnRequest } from './api';
 import { trackFor } from './music';
 import { EndScreen } from './EndScreen';
+import { MapPanel } from './MapPanel';
 import { inlineParts } from './format';
 import { revealHint } from './hints';
 import { ScryingGlass } from './ScryingGlass';
@@ -114,6 +115,7 @@ export function GameScreen({ sessionId, newGame, onQuit, onTrack, onGuide }: {
           ) : 'Reading your character sheet…'}
           <button className="bbtn inline quit" onClick={onQuit}>Leave ▸</button>
         </div>
+        <MapPanel view={view} onTravel={act} canTravel={canAct(view)} />
       </div>
     </div>
   );

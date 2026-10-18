@@ -6,35 +6,120 @@ It's built to teach agent concepts on Databricks by playing.
 
 > 🗺️ Playable: a three-act adventure in the Kingdom of Sparkia (see the [story bible](docs/superpowers/specs/2026-10-17-campaign-design.md)). Every location has Amiga-style scene art and its own chiptune theme (prompts in [content/ART.md](content/ART.md) and [content/MUSIC.md](content/MUSIC.md)).
 
-## Deploy (work in progress)
+## What you need
 
-```bash
-make deploy PROFILE=<your-databricks-profile> CATALOG=<a-catalog-you-can-create-schemas-in>
-```
+> **Not supported on the Databricks Free Edition.** The game needs features the Free Edition doesn't offer
+> today, so use a full workspace (a trial or paid account).
 
-This renders the lorebooks, deploys the bundle (schema, volume, AI Search endpoint, ingest job and the
-Lakebase game database), migrates the game schema, builds the lore index, and then deploys the
-Dungeon Master to Agent Runtime with its session and memory stores. Traces are stored in Unity
-Catalog. Every turn is also written as plain messages to a transcript session store
-(`dm-…-transcripts`, created by `make deploy`). `make memory-pipeline PROFILE=…` creates the Dreamer
-pipeline that distils those transcripts into the memory store, about once a day (or run it by hand with
-`agentbricks memory pipeline run`). An adventure's ending also asks the platform to distil it at once (when the service allows it; otherwise the next Dreamer run picks it up).
-The next adventure's opening recalls what was learned (🧠). `make destroy` removes it all. The AI Search endpoint bills while an index exists, so
-destroy it when you're done.
+**A Databricks workspace** with:
+- Unity Catalog and serverless compute;
+- a catalog where you can create a schema (the game creates `<catalog>.databricks_adventure`);
+- permission to create Databricks Apps, Lakebase (Postgres) databases, AI Search endpoints, jobs and MLflow
+  experiments;
+- a SQL warehouse (the default one is used for traces and grants);
+- access to the `system.ai` foundation models through AI Gateway (the DM uses `system.ai.claude-sonnet-4-5`).
 
-`make deploy` finishes by deploying the game app, **databricks-adventure**. Open it from the
-Databricks Apps page. Each player needs `CAN_USE` on both apps: `make grant-player PROFILE=…
-PLAYER=someone@example.com`. In the game, **💡 Hint** suggests what to do next (worked out from the story state, not the model), the
-**📖 Guide** explains each concept, and the end screen shows what you saw, counted in Lakebase. For local UI work, run `make app-dev PROFILE=…`, which talks to the
-deployed DM with your own token.
+**Previews** to turn on in the workspace's **Previews** page:
 
-`make eval PROFILE=… CATALOG=…` plays the eval scenarios against the DM and prints its report card
-(needs the stack running). `make monitoring PROFILE=…` registers the same LLM judges (safety,
-in_character, player_agency) on the live traces in `dm-traces` (MLflow production monitoring, Beta), so a
-sample of real turns is scored too. It needs the workspace's GenAI production-monitoring preview
-(Previews page); without it the experiment's "Trace Metrics Computation Job" fails with "This feature has not
-been enabled for this workspace". The job runs every 15 minutes, so scores appear on the traces within about
-20 minutes. `make monitoring-stop` pauses it.
+| Preview | Needed for | Required? |
+|---|---|---|
+| Agent memory (if it's listed) | The DM's long-term memory and the Dreamer pipeline | Yes |
+| Unity AI Gateway Service Policies | Guardrails on the DM's model (`dm_model`) | Optional: without it, the system prompt is the only defence |
+| GenAI production monitoring | Live judges scoring real games (`make monitoring`) | Optional |
+
+The Agent Bricks CLI and Agent Runtime are Beta but need no setting.
+
+**On your machine:**
+- the [Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/install) v1.20 or later, logged in to the
+  workspace as a named profile (`databricks auth login --profile <name>`);
+- the Agent Bricks CLI: `uv tool install databricks-agentbricks` (0.5.1 or later), which gives `agentbricks`;
+- [uv](https://docs.astral.sh/uv/) (it manages Python 3.12 for you), Node.js 20 or later, `jq`, and `make`.
+
+## Set it up
+
+Run these from the repo root. Each step can be re-run safely. `PROFILE` is your CLI profile and `CATALOG` is a
+catalog you can create schemas in.
+
+1. **Deploy everything:**
+   ```bash
+   make deploy PROFILE=<profile> CATALOG=<catalog>
+   ```
+   This takes about 20–30 minutes the first time. It:
+   - renders the lorebooks and deploys the bundle (schema, volume, AI Search endpoint, ingest job, Lakebase game
+     database);
+   - creates the game tables;
+   - builds the lore index;
+   - deploys the Dungeon Master to Agent Runtime as **`agent-bricks-dm`**, with its session, memory and transcript
+     stores, its own AI Gateway model service (`dm_model`) and least-privilege grants;
+   - deploys the game app, **`databricks-adventure`**.
+
+   Traces go to Unity Catalog, in the `/Shared/databricks-adventure/dm-traces` experiment.
+2. **Create the memory pipeline:** `make memory-pipeline PROFILE=<profile>`. The Dreamer distils each day's
+   play into long-term memories (about once a day; run it by hand with `agentbricks memory pipeline run <name>`).
+3. **Turn on the guardrails (optional):** follow [Turn on the guardrails](#turn-on-the-guardrails) below, then run
+   `make guardrails-check PROFILE=<profile> CATALOG=<catalog>`.
+4. **Turn on live monitoring (optional):** `make monitoring PROFILE=<profile>` registers the eval judges on the
+   play traces (see [Evaluate the DM](#evaluate-the-dm)).
+5. **Let people play:** each player needs `CAN_USE` on both apps:
+   `make grant-player PROFILE=<profile> PLAYER=someone@example.com`.
+6. **Play:** open **`databricks-adventure`** from the workspace's Apps page.
+
+**Check it worked:**
+- `TOKEN=$(databricks auth token -p <profile> | jq -r .access_token) dm/scripts/campaign_smoke.sh $(databricks apps get agent-bricks-dm --profile <profile> -o json | jq -r .url)`
+  plays part of Act 1 against the deployed DM and prints `CAMPAIGN SMOKE DONE`. It also prints
+  `guardrail fired` if the guardrails are on.
+- `make test` runs the offline tests (pipelines and DM). `cd app && npx vitest run` runs the app's.
+
+**For an agent doing the setup:** the commands above don't prompt and can be re-run. Ask the human only for
+`PROFILE`, `CATALOG` and the player emails, and for the UI-only steps: turning on the previews and attaching the
+guardrail policies. Never put hosts, tokens or emails in tracked files.
+
+## How it works
+
+- **The DM** is a LangGraph agent (`dm/`) on Agent Runtime. Each turn runs through: `load_state` from
+  Lakebase → `dm_reason` with tools (dice, combat, lore search, state changes, memory) → `commit_state` in
+  one transaction → `compose` structured narration and choices.
+- **Lore** is parsed and chunked into an AI Search index (`<catalog>.databricks_adventure.lore_index`) and
+  searched filtered to where the player stands.
+- **State** (characters, flags, NPC dispositions, stats) lives in Lakebase, schema `rpg`. **Memory**: every turn
+  is written as plain messages to a transcript store, the Dreamer distils those into the memory store, and the
+  next adventure's opening recalls them (🧠).
+- **The game app** (`app/`, AppKit and React) streams each turn and shows the **Scrying Glass**: the graph
+  steps, tool calls, retrievals, memory, state commits and guardrail blocks. **💡 Hint** works out the next story
+  beat from game state (no model call), the **📖 Guide** explains each concept, the world map shows where you
+  are, and the end screen shows what you saw, counted in Lakebase. For local UI work,
+  `make app-dev PROFILE=<profile>` runs it against the deployed DM.
+
+## Evaluate the DM
+
+- **Offline:** `make eval PROFILE=<profile> CATALOG=<catalog>` plays 28 seeded scenarios against the DM in-process
+  and prints a report card from code scorers and LLM judges, logged to `/Shared/databricks-adventure/dm-evals`.
+  Add `EVAL_MODEL=system.ai.claude-sonnet-4-5` for the unguarded "before".
+- **Live:** `make monitoring PROFILE=<profile>` registers the same LLM judges (safety, in_character,
+  player_agency) on `dm-traces` with MLflow production monitoring (Beta), so a sample of real turns is scored.
+  - It needs the GenAI production-monitoring preview. Without it, the experiment's "Trace Metrics Computation
+    Job" fails with "This feature has not been enabled for this workspace".
+  - The job runs every 15 minutes, so scores appear on the traces within about 20 minutes.
+  - `make monitoring-stop` pauses it.
+
+## Costs, pausing and removing it
+
+| Resource | Bills while |
+|---|---|
+| AI Search endpoint | an index exists |
+| The two apps | running |
+| Lakebase | active (it scales to zero when idle) |
+| Model, guardrail and judge calls | per call |
+
+- **To pause without losing anything:**
+  1. stop both apps (`databricks apps stop agent-bricks-dm`, `databricks apps stop databricks-adventure`);
+  2. run `make monitoring-stop`;
+  3. delete the lore index (`databricks vector-search-indexes delete-index <catalog>.databricks_adventure.lore_index`).
+
+  The endpoint stops billing about 24 hours after its last index goes.
+- **To resume:** start both apps, then run `make ingest PROFILE=<profile> CATALOG=<catalog>` to rebuild the index
+  (about 15 minutes).
+- **To remove everything:** `make destroy PROFILE=<profile> CATALOG=<catalog>`.
 
 ## Turn on the guardrails
 
