@@ -28,7 +28,7 @@ from databricks_agentkit.langgraph.session_store import (
 from databricks_agentkit.runtime.auth import AuthError
 
 # A Unity Catalog AI Gateway model (`system.ai.*`). Override with the DM_MODEL env var.
-MODEL = os.getenv("DM_MODEL", "system.ai.claude-sonnet-4-5")
+MODEL = os.getenv("DM_MODEL", "system.ai.claude-sonnet-5")
 
 NPC_DIR = Path(__file__).resolve().parents[2] / "content" / "npcs"
 _store: GameStore | None = None

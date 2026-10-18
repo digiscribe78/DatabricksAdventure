@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 import pytest
 from devtools.guardrails_check import report
@@ -12,7 +13,7 @@ def test_service_name_lives_in_the_game_schema():
 
 def test_dm_model_routes_only_to_sonnet():
     [dest] = create_body()["config"]["routing"]["destinations"]
-    assert dest["name"] == "system.ai.databricks-claude-sonnet-4-5"
+    assert dest["name"] == "system.ai.databricks-claude-sonnet-5"
     assert dest["destination_type"] == "DESTINATION_TYPE_PAY_PER_TOKEN_FOUNDATION_MODEL"
     assert dest["traffic_percentage"] == 100
 
@@ -62,3 +63,26 @@ def test_missing_service_is_recognised_in_other_wordings():
                 raise RuntimeError(f"databricks ai-gateway get-model-service failed: {message}")
 
         assert ensure_model_service("p", "cat", "sch", run=run) is True, message
+
+
+def test_an_existing_service_on_an_old_model_is_repointed():
+    old = {"config": {"routing": {"destinations": [{"name": "system.ai.databricks-claude-sonnet-4-5"}]}}}
+    calls = []
+
+    def run(cmd):
+        calls.append(cmd)
+        if cmd[2] == "get-model-service":
+            return SimpleNamespace(stdout=json.dumps(old))
+
+    assert ensure_model_service("p", "cat", "sch", run=run) is False
+    update = calls[-1]
+    assert update[2:5] == ["update-model-service", "model-services/cat.sch.dm_model", "config.routing.destinations"]
+    assert json.loads(update[update.index("--json") + 1])["config"]["routing"] == create_body()["config"]["routing"]
+
+
+def test_a_service_already_on_the_model_is_left_alone():
+    current = {"config": {"routing": {"destinations": [{"name": "system.ai.databricks-claude-sonnet-5"}]}}}
+    calls = []
+    run = lambda cmd: calls.append(cmd) or SimpleNamespace(stdout=json.dumps(current))
+    ensure_model_service("p", "cat", "sch", run=run)
+    assert [c[2] for c in calls] == ["get-model-service"]
