@@ -192,5 +192,15 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 .map-marker.closed .pin { color: #e0605a; }
 .map-marker.far .pin { color: #eadfc8; opacity: 0.6; }
 @keyframes map-pulse { 50% { transform: scale(1.25); } }
-@media (min-width: 901px) { .side { overflow-y: auto; } .side .world-map { flex: 0 0 auto; margin-top: 10px; } }
+
 .map-marker.here .label { background: #f2c46b; font-weight: bold; }
+
+/* Wide screens: the right column's top block is exactly as tall as the scene panel (32vh image, 10px
+   padding and 3px border each side), so the map's top lines up with the narration's top. The sheet
+   takes the spare height; a busy Scrying Glass scrolls inside itself. */
+@media (min-width: 901px) {
+  .side-top { display: flex; flex-direction: column; flex: 0 0 auto; height: calc(max(32vh, 150px) + 26px); margin-bottom: 10px; min-height: 0; }
+  .side-top .bscry { flex: 0 1 auto; min-height: 0; overflow: auto; margin-bottom: 10px; }
+  .side-top .sheet { flex: 1 0 auto; }
+  .side .world-map { flex: 0 1 auto; min-height: 0; overflow: hidden; margin-bottom: 0; }
+}
