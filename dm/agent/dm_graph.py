@@ -169,6 +169,29 @@ def _context(messages: list[AnyMessage]) -> list[AnyMessage]:
     return _sendable(messages)
 
 
+# Some models refuse every form of structured output through AI Gateway (forced tool_choice and
+# response_format), e.g. Sonnet 5.5 and Opus 5.5, but call a tool when the prompt asks for it.
+_NO_STRUCTURED = "not supported for this model"
+_ASK_FOR_TOOL = ("\n\nReply by calling the ComposeOutput tool exactly once with the narration and choices; "
+                 "write nothing outside the tool call.")
+
+
+def _compose(llm: Any, prompt: list[AnyMessage]) -> ComposeOutput:
+    """Structured narration and choices, from structured output or, if the model refuses it, an un-forced tool call."""
+    try:
+        result = llm.with_structured_output(ComposeOutput).invoke(prompt)
+    except Exception as e:  # noqa: BLE001 - only the model's refusal is handled here; the rest re-raise
+        if _NO_STRUCTURED not in str(e):
+            raise
+        asked = [SystemMessage(prompt[0].content + _ASK_FOR_TOOL), *prompt[1:]]
+        reply = llm.bind_tools([ComposeOutput], tool_choice="auto").invoke(asked)
+        calls = [c for c in getattr(reply, "tool_calls", None) or [] if c.get("name") == "ComposeOutput"]
+        if not calls:
+            raise ValueError("the model did not call ComposeOutput") from e
+        result = calls[0]["args"]
+    return result if isinstance(result, ComposeOutput) else ComposeOutput.model_validate(result)
+
+
 def compose_turn(
     llm: Any,
     messages: list[AnyMessage],
@@ -177,7 +200,6 @@ def compose_turn(
     previous_choices: list[str] | None,
     applied: list[str] | None = None,
 ) -> TurnOutput:
-    structured = llm.with_structured_output(ComposeOutput)
     system = COMPOSE_SYSTEM
     if applied:
         system += (
@@ -187,9 +209,7 @@ def compose_turn(
     prompt = [SystemMessage(system), *_context(messages)]
     for _ in range(2):  # one attempt plus one repair retry
         try:
-            result = structured.invoke(prompt)
-            prose = result if isinstance(result, ComposeOutput) else ComposeOutput.model_validate(result)
-            return TurnOutput.from_compose(prose, location_id, events)
+            return TurnOutput.from_compose(_compose(llm, prompt), location_id, events)
         except Exception:  # noqa: BLE001 - any model/parse failure falls through to retry/fallback
             logger.warning("compose attempt failed", exc_info=True)
     return fallback_turn(location_id, events, previous_choices)
@@ -215,9 +235,7 @@ def compose_refusal(
     prompt = [SystemMessage(REFUSAL_SYSTEM.format(place=place)),
               *_context([*earlier, HumanMessage(REFUSED_PLACEHOLDER)])]
     try:
-        result = llm.with_structured_output(ComposeOutput).invoke(prompt)
-        prose = result if isinstance(result, ComposeOutput) else ComposeOutput.model_validate(result)
-        return TurnOutput.from_compose(prose, location_id, events)
+        return TurnOutput.from_compose(_compose(llm, prompt), location_id, events)
     except Exception:  # noqa: BLE001 - a failed or blocked refusal falls back to the canned line
         logger.warning("refusal compose failed", exc_info=True)
     canned = ComposeOutput(narration=refusal_line(policy), choices=previous_choices or FALLBACK_CHOICES)
