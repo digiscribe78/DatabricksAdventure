@@ -1,5 +1,12 @@
 # Databricks Adventure
 
+> [!IMPORTANT]
+> **A personal project, not an official Databricks product.** It isn't developed, endorsed or supported by
+> Databricks, Inc. Care has been taken to keep it safe (least-privilege grants, guardrails, no secrets in the repo),
+> but it's provided **as is**, without warranty. **You deploy and run it at your own risk.** It creates billable
+> resources in your Databricks account, uses Beta features that may change, and you're responsible for the cost,
+> for who can access it, and for checking it meets your organisation's policies. See [Disclaimer](#disclaimer).
+
 A retro text RPG set in the Kingdom of Sparkia, where the Dungeon Master is an AI agent built on Databricks. While you play, the **Scrying Glass** panel shows what's happening behind the curtain: tool calls, retrieval, memory, state, guardrails and traces.
 
 It's built to teach agent concepts on Databricks by playing.
@@ -194,6 +201,24 @@ Each of these is something to do in the game, then somewhere to look to see how 
 | Press 💡 Hint | 💡 the hint and its source | the 💡 line in the Scrying Glass, then `content/hints.yaml` |
 
 The same list is in the game: open the **📖 Guide** from the title screen or beside the Scrying Glass, and press **💡 Hint** when you're not sure what to do next.
+
+## Disclaimer
+
+Databricks Adventure is a personal project by an individual, built to show how agents can be built on
+Databricks. It is **not an official Databricks product**: it isn't developed, endorsed, reviewed or supported by
+Databricks, Inc., and nothing in it is official Databricks guidance.
+
+Reasonable care has gone into keeping it safe: the DM's service principal gets least-privilege grants, its model
+calls can be screened by guardrails, and the repo holds no keys, tokens or workspace details. Even so:
+
+- **It's provided as is, without warranty of any kind** (see the Apache-2.0 [LICENSE](LICENSE)).
+- **You deploy and run it at your own risk**, in a workspace you're allowed to use for it.
+- **It creates billable resources** (apps, Lakebase, an AI Search endpoint, model, guardrail and judge calls);
+  you're responsible for the cost and for pausing or removing them.
+- **It uses Beta and preview features** that may change or stop working.
+- **You're responsible for access and data:** who you grant it to, what players type into it, and whether
+  it meets your organisation's security and AI policies. The DM remembers things players tell it.
+- Review the code and the grants before deploying it anywhere that matters.
 
 ## Licence
 
