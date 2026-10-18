@@ -45,6 +45,10 @@ The Agent Bricks CLI and Agent Runtime are Beta but need no setting.
 - [uv](https://docs.astral.sh/uv/) (it manages Python 3.12 for you), Node.js 22 or later, `jq`, `make`, `curl` and
   `uuidgen` (on Linux, `uuid-runtime`).
 
+If your machine installs Python packages through a private mirror (for example inside a company network), uv
+uses your mirror config automatically and may rewrite `dm/uv.lock` and `pipelines/uv.lock` locally. That's fine;
+just don't commit those changes, as the committed lockfiles point at public PyPI.
+
 One install per workspace: the app names (`databricks-adventure`, `agent-bricks-dm`), the Lakebase project, the AI
 Search endpoint and the `/Shared/databricks-adventure/` experiments are fixed names.
 
