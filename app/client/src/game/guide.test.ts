@@ -21,3 +21,11 @@ describe('GUIDE', () => {
     for (const p of GUIDE) expect(table, p.id).toContain(p.tryThis);
   });
 });
+
+describe('Things to try', () => {
+  it('lists every page with a try-this, in Guide order', async () => {
+    const { thingsToTry } = await import('./guide');
+    expect(thingsToTry().map((t) => t.page)).toEqual(GUIDE.map((p) => p.id));
+    expect(thingsToTry()[0]).toEqual({ page: 'tools', glyph: '🎲', tryThis: 'Attack something', look: GUIDE[0].look });
+  });
+});

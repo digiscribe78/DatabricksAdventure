@@ -169,3 +169,52 @@ async def test_a_broken_hints_file_never_breaks_the_turn(mem_store, recorded, mo
     monkeypatch.setattr(adapter, "next_hint", lambda *a: (_ for _ in ()).throw(KeyError("vowed_to_find_aldric")))
     result = await adapter.invoke({"messages": [{"role": "user", "content": "I look."}]}, ctx())
     assert result["game"]["hint"] is None and result["turn"]["narration"] == TURN["narration"]
+
+
+@pytest.mark.asyncio
+async def test_the_game_snapshot_goes_out_first_so_the_scene_shows_while_the_dm_thinks(mem_store, recorded, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+    monkeypatch.setattr(adapter, "run_agent", fake_run(TURN))
+    context = ctx()
+    await adapter.invoke({"messages": [{"role": "user", "content": "I look."}]}, context)
+    kinds = [c.args[0]["type"] for c in context.emit.await_args_list]
+    assert kinds[0] == "game" and kinds.index("game") < kinds.index("turn")
+
+
+@pytest.mark.asyncio
+async def test_continuing_a_save_shows_the_last_turn_without_a_model_call(mem_store, recorded, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+
+    async def no_model(*a, **k):
+        raise AssertionError("the DM should not run when resuming a save")
+        yield
+
+    async def saved(session_id, actor):
+        return dict(TURN)
+
+    monkeypatch.setattr(adapter, "run_agent", no_model)
+    monkeypatch.setattr(adapter, "_saved_turn", saved)
+    context = ctx()
+    result = await adapter.invoke({"messages": []}, context)
+    assert result["turn"]["narration"] == TURN["narration"] and result["game"]["location_id"] == "medallion-inn"
+    assert [c.args[0]["type"] for c in context.emit.await_args_list] == ["game", "turn"]
+    assert recorded["record"] == []  # nothing new happened, so nothing joins the transcript
+
+
+@pytest.mark.asyncio
+async def test_a_save_with_no_stored_turn_still_gets_the_dm(mem_store, recorded, monkeypatch):  # noqa: F811
+    import runtime.adapter as adapter
+
+    mem_store.create_adventure("s-t", "s-t", "Tess", "warrior")
+
+    async def none(session_id, actor):
+        return None
+
+    monkeypatch.setattr(adapter, "_saved_turn", none)
+    monkeypatch.setattr(adapter, "run_agent", fake_run(TURN))
+    result = await adapter.invoke({"messages": []}, ctx())
+    assert result["turn"]["narration"] == TURN["narration"]

@@ -133,7 +133,7 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
 .bscry { color: var(--glass); font-size: 18px; position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow: auto; }
 .bscry .t { color: var(--gold-hi); }
 .glass-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.glass-tab { position: fixed; right: 0; top: 40%; writing-mode: vertical-rl; color: var(--gold-hi); cursor: pointer; font: inherit; }
+.glass-tab { position: fixed; right: 0; top: 40%; z-index: 15; writing-mode: vertical-rl; color: var(--gold-hi); cursor: pointer; font: inherit; }
 .graph { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
 .pill { border: 1px solid var(--glass); padding: 0 6px; opacity: 0.5; }
 .pill.lit { opacity: 1; color: var(--gold-hi); border-color: var(--gold-hi); }
@@ -204,3 +204,6 @@ html, body, #root { height: 100%; margin: 0; background: var(--ink); }
   .side-top .sheet { flex: 1 0 auto; }
   .side .world-map { flex: 0 1 auto; min-height: 0; overflow: hidden; margin-bottom: 0; }
 }
+
+.try-list { list-style: none; padding: 0; margin: 0; }
+.try-list li { margin: 0 0 8px; }
