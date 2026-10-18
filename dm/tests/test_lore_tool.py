@@ -115,3 +115,27 @@ def test_search_is_traced_as_a_retriever_span(calls, local_mlflow):
     trace = mlflow.get_trace(mlflow.get_last_active_trace_id())
     [span] = [s for s in trace.data.spans if s.span_type == SpanType.RETRIEVER]
     assert span.outputs == lore.documents([PASSAGE])
+
+
+def test_a_lore_outage_is_logged(monkeypatch, caplog):
+    def broken(query, scope):
+        raise PermissionError("You do not have the SELECT privilege on 'cat.sch.lore_index'")
+
+    monkeypatch.setattr(lore, "SEARCH", broken)
+    with caplog.at_level("WARNING"):
+        out = lore.search_lore.invoke({"query": "the three seals", "state": STATE})
+    assert out["error"].startswith("lore unavailable") and out["query"] == "the three seals"
+    assert any("lore lookup failed" in r.message for r in caplog.records)
+
+
+def test_a_lore_outage_shows_in_the_glass_instead_of_vanishing():
+    import json
+
+    from agent.dm_graph import turn_events
+    from langchain_core.messages import HumanMessage, ToolMessage
+
+    failed = ToolMessage(content=json.dumps({"query": "the three seals", "error": "lore unavailable: no SELECT privilege"}),
+                         name="search_lore", tool_call_id="c1")
+    [event] = turn_events([HumanMessage("What are the three seals?"), failed])
+    assert event.type == "warning" and event.summary.startswith("Lore unavailable")
+    assert "no SELECT privilege" in event.summary

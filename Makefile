@@ -30,6 +30,8 @@ deploy: check-vars content
 
 ingest: check-vars
 	$(BUNDLE) run ingest_lore
+	@# A rebuilt index has no grants: give the DM its SELECT back.
+	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) uv run python -m devtools.lore_grant $(PROFILE) $(CATALOG) $(SCHEMA) $(WAREHOUSE)
 
 db:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)

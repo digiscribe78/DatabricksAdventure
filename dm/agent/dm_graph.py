@@ -147,6 +147,10 @@ def turn_events(messages: list[AnyMessage]) -> list[TurnEvent]:
             r = {"result": m.content}
         if r and "error" not in r:
             events.append(build(r))
+        elif r and build is _lore_event:
+            # A lore outage must be visible: otherwise the DM narrates from its prompt and RAG quietly stops.
+            events.append(TurnEvent(type="warning", summary=f"Lore unavailable: {str(r['error']).removeprefix('lore unavailable: ')[:160]}",
+                                    detail=r))
     return events
 
 

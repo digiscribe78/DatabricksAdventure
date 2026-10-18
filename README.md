@@ -139,7 +139,8 @@ guardrail policies. Never put hosts, tokens or emails in tracked files.
 
   The endpoint stops billing about 24 hours after its last index goes.
 - **To resume:** start both apps, then run `make ingest PROFILE=<profile> CATALOG=<catalog>` to rebuild the index
-  (about 15 minutes).
+  (about 15 minutes). Use `make ingest`, not the ingest job on its own: a rebuilt index has no grants, and
+  `make ingest` gives the DM its `SELECT` back (otherwise lore lookups fail and the Scrying Glass shows ⚠).
 - **To remove everything:** `make destroy PROFILE=<profile> CATALOG=<catalog>` removes the apps, the agent
   deployment, the lore index and the bundle (schema, volume, endpoint, Lakebase project, jobs). A few things it leaves:
   the `dm_model` model service, the `/Shared/databricks-adventure/` experiments, the session, memory and transcript

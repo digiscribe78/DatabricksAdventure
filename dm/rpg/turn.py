@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 
 MAX_NARRATION_WORDS = 400
 
-EventType = Literal["roll", "attack", "lore", "memory", "state", "guardrail"]
+EventType = Literal["roll", "attack", "lore", "memory", "state", "guardrail", "warning"]
 
 
 class TurnEvent(BaseModel):
