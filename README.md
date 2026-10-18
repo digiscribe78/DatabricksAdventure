@@ -13,11 +13,20 @@ It's built to teach agent concepts on Databricks by playing.
 
 **A Databricks workspace** with:
 - Unity Catalog and serverless compute;
-- a catalog where you can create a schema (the game creates `<catalog>.databricks_adventure`);
+- a catalog you **own or have MANAGE on**: the game creates `<catalog>.databricks_adventure`, and the deploy grants
+  the DM's service principal `USE CATALOG` on it. If you only have CREATE SCHEMA, ask the catalog owner to run
+  `GRANT USE CATALOG ON CATALOG <catalog> TO <the agent-bricks-dm app's service principal>` after the first deploy
+  stops, then run `make deploy-agent deploy-app PROFILE=<profile> CATALOG=<catalog>`;
 - permission to create Databricks Apps, Lakebase (Postgres) databases, AI Search endpoints, jobs and MLflow
   experiments;
 - a SQL warehouse (the default one is used for traces and grants);
-- access to the `system.ai` foundation models through AI Gateway (the DM uses `system.ai.claude-sonnet-5`).
+- access to the `system.ai` foundation models through AI Gateway. The DM calls its own model service, `dm_model`, which
+  routes to `system.ai.databricks-claude-sonnet-5` (the `system.ai.claude-sonnet-5` model service); the guardrails
+  and live judges use other `system.ai` models picked by the platform;
+- these platform features, which must be available in your workspace and region: Databricks Apps with user
+  authorization (on-behalf-of-user), Lakebase Postgres (autoscaling projects), AI Search with the
+  `databricks-gte-large-en` embedding endpoint, Unity AI Gateway model services, and MLflow traces stored in Unity
+  Catalog.
 
 **Previews** to turn on in the workspace's **Previews** page:
 
@@ -33,7 +42,11 @@ The Agent Bricks CLI and Agent Runtime are Beta but need no setting.
 - the [Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/install) v1.20 or later, logged in to the
   workspace as a named profile (`databricks auth login --profile <name>`);
 - the Agent Bricks CLI: `uv tool install databricks-agentbricks` (0.5.1 or later), which gives `agentbricks`;
-- [uv](https://docs.astral.sh/uv/) (it manages Python 3.12 for you), Node.js 20 or later, `jq`, and `make`.
+- [uv](https://docs.astral.sh/uv/) (it manages Python 3.12 for you), Node.js 22 or later, `jq`, `make`, `curl` and
+  `uuidgen` (on Linux, `uuid-runtime`).
+
+One install per workspace: the app names (`databricks-adventure`, `agent-bricks-dm`), the Lakebase project, the AI
+Search endpoint and the `/Shared/databricks-adventure/` experiments are fixed names.
 
 ## Set it up
 
@@ -55,7 +68,9 @@ catalog you can create schemas in.
 
    Traces go to Unity Catalog, in the `/Shared/databricks-adventure/dm-traces` experiment.
 2. **Create the memory pipeline:** `make memory-pipeline PROFILE=<profile>`. The Dreamer distils each day's
-   play into long-term memories (about once a day; run it by hand with `agentbricks memory pipeline run <name>`).
+   play into long-term memories, about once a day. To run it by hand, take its resource name
+   (`memory-pipelines/…`) from `agentbricks --profile <profile> memory pipeline list`, then
+   `agentbricks --profile <profile> memory pipeline run <resource name>`.
 3. **Turn on the guardrails (optional):** follow [Turn on the guardrails](#turn-on-the-guardrails) below, then run
    `make guardrails-check PROFILE=<profile> CATALOG=<catalog>`.
 4. **Turn on live monitoring (optional):** `make monitoring PROFILE=<profile>` registers the eval judges on the
@@ -63,6 +78,11 @@ catalog you can create schemas in.
 5. **Let people play:** each player needs `CAN_USE` on both apps:
    `make grant-player PROFILE=<profile> PLAYER=someone@example.com`.
 6. **Play:** open **`databricks-adventure`** from the workspace's Apps page.
+
+**If `make deploy` stops** with `GRANT FAILED` (for example the catalog permission above, or a Lakebase role that
+isn't ready a moment after the app is created), fix the cause and carry on with
+`make deploy-agent PROFILE=<profile> CATALOG=<catalog>` then `make deploy-app PROFILE=<profile>`: both are safe to
+re-run.
 
 **Check it worked:**
 - `TOKEN=$(databricks auth token -p <profile> | jq -r .access_token) dm/scripts/campaign_smoke.sh $(databricks apps get agent-bricks-dm --profile <profile> -o json | jq -r .url)`
@@ -112,14 +132,19 @@ guardrail policies. Never put hosts, tokens or emails in tracked files.
 | Model, guardrail and judge calls | per call |
 
 - **To pause without losing anything:**
-  1. stop both apps (`databricks apps stop agent-bricks-dm`, `databricks apps stop databricks-adventure`);
-  2. run `make monitoring-stop`;
-  3. delete the lore index (`databricks vector-search-indexes delete-index <catalog>.databricks_adventure.lore_index`).
+  1. stop both apps (`databricks apps stop agent-bricks-dm --profile <profile>`, then the same for
+     `databricks-adventure`);
+  2. run `make monitoring-stop PROFILE=<profile>`;
+  3. delete the lore index (`databricks vector-search-indexes delete-index --profile <profile> <catalog>.databricks_adventure.lore_index`).
 
   The endpoint stops billing about 24 hours after its last index goes.
 - **To resume:** start both apps, then run `make ingest PROFILE=<profile> CATALOG=<catalog>` to rebuild the index
   (about 15 minutes).
-- **To remove everything:** `make destroy PROFILE=<profile> CATALOG=<catalog>`.
+- **To remove everything:** `make destroy PROFILE=<profile> CATALOG=<catalog>` removes the apps, the agent
+  deployment, the lore index and the bundle (schema, volume, endpoint, Lakebase project, jobs). A few things it leaves:
+  the `dm_model` model service, the `/Shared/databricks-adventure/` experiments, the session, memory and transcript
+  stores (`agentbricks sessions stores` / `agentbricks memory stores`), and the `dm-dreamer` pipeline. Delete those
+  by hand if you want a clean slate. If the schema is not empty, drop it from Catalog Explorer.
 
 ## Turn on the guardrails
 

@@ -24,7 +24,7 @@ deploy: check-vars content
 	databricks fs cp --profile $(PROFILE) --recursive --overwrite build/lore $(VOLUME)/pdfs
 	databricks fs cp --profile $(PROFILE) --overwrite content/manifest.yaml $(VOLUME)/manifest.yaml
 	$(MAKE) ingest PROFILE=$(PROFILE) CATALOG=$(CATALOG) SCHEMA=$(SCHEMA)
-	@echo "Lore index ready: $(INDEX). Put LORE_INDEX=$(INDEX) in dm/.env"
+	@echo "Lore index ready: $(INDEX). (For local DM dev only: put LORE_INDEX=$(INDEX) in dm/.env.)"
 	$(MAKE) deploy-agent PROFILE=$(PROFILE) CATALOG=$(CATALOG) SCHEMA=$(SCHEMA)
 	$(MAKE) deploy-app PROFILE=$(PROFILE)
 
@@ -33,7 +33,7 @@ ingest: check-vars
 
 db:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
-	eval "$$(scripts/lakebase_env.sh $(PROFILE) $(LAKEBASE_PROJECT))" && cd dm && \
+	env=$$(scripts/lakebase_env.sh $(PROFILE) $(LAKEBASE_PROJECT)) && eval "$$env" && cd dm && \
 		DATABRICKS_CONFIG_PROFILE=$(PROFILE) uv run python -m agent.pgstore migrate ../content/npcs
 
 deploy-agent: check-vars
