@@ -6,3 +6,8 @@ This product's code and content are licensed under the Apache License, Version 2
 The Databricks name and logo (app/client/public/brand/) are trademarks of Databricks, Inc. They are
 not licensed under the Apache License and are used here only to show that the game runs on
 Databricks. Use them only as the Databricks brand guidelines allow.
+
+DISCLAIMER: Databricks Adventure is a personal project, not an official Databricks product. It is not
+developed, endorsed or supported by Databricks, Inc. It is provided "as is", without warranty of any kind,
+and anyone who deploys or runs it does so at their own risk and is responsible for the resources, costs,
+access and data involved.
