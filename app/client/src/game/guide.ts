@@ -42,7 +42,7 @@ export const GUIDE: GuidePage[] = [
     docs: `${D}/data-governance/unity-catalog/service-policies` },
   { id: 'evals', glyph: '📋', title: 'Evaluation',
     saw: 'Nothing in the game: evals run outside it, against the same DM.',
-    built: 'make eval plays seeded scenarios in-process and scores them with code scorers (dice integrity, tools, story flags, schema, guardrails) and LLM judges, logged to an MLflow experiment.',
+    built: 'make eval plays seeded scenarios in-process and scores them with code scorers (dice integrity, tools, story flags, schema, guardrails) and LLM judges, logged to the dm-evals experiment. Live monitoring (make monitoring) registers the same judges on the play traces, so a sample of real turns is scored too: look for assessments on traces in dm-traces.',
     tryThis: 'Run `make eval PROFILE=… CATALOG=…`', look: 'the report card it prints, and the `/Shared/databricks-adventure/dm-evals` experiment',
     docs: `${D}/mlflow3/genai/eval-monitor/` },
   { id: 'hints', glyph: '💡', title: 'Hints: game state vs the model',
