@@ -38,7 +38,7 @@ scenarios:
   - id: combat-silenced-archivist
     category: combat
     state: {location_id: silos-keep, flags: {<<: *act3, grisle_outcome: bluffed}}
-    input: "I draw my longsword and attack the Silenced Archivist blocking the corridor."
+    input: "A Silenced Archivist shambles out of a bricked-up corridor towards me. I draw my longsword and attack it."
     expect:
       tools: [resolve_attack]
   - id: combat-swamp-rats
