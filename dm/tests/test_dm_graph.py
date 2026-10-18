@@ -224,7 +224,7 @@ def test_failed_lore_lookup_still_completes_turn(monkeypatch):
     graph = make(model, [roll_check, search_lore])
     turn = run(graph, "Tell me a legend.")["turn"]
     assert turn["narration"] == PROSE.narration
-    assert turn["events"] == []
+    assert [e["type"] for e in turn["events"]] == ["warning"]  # visible, never silent
 
 
 from agent.dm_graph import COMMIT_FAILED_NARRATION

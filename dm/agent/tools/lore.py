@@ -1,6 +1,7 @@
 """Lore tool: the DM looks up the world's lorebooks (AI Search) before describing it."""
 
 import json
+import logging
 import os
 from typing import Annotated, Callable
 
@@ -11,6 +12,8 @@ from langgraph.prebuilt import InjectedState
 from mlflow.entities import SpanType
 
 from rpg.world import LOCATIONS
+
+logger = logging.getLogger(__name__)
 
 NUM_RESULTS = 4
 COLUMNS = ["chunk_text", "source", "page", "doc_type", "location_id"]
@@ -78,5 +81,6 @@ def search_lore(query: str, state: Annotated[dict, InjectedState]) -> dict:
     try:
         passages = _retrieve(query, scope(state.get("location_id", ""), state.get("flags") or {}))
     except Exception as e:  # noqa: BLE001 - lore outages must not break the turn
-        return {"error": f"lore unavailable: {e}"}
+        logger.warning("lore lookup failed for %r", query, exc_info=True)  # never silent: the Glass shows it too
+        return {"query": query, "error": f"lore unavailable: {e}"}
     return {"query": query, "passages": passages}

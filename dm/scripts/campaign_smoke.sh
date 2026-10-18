@@ -22,6 +22,15 @@ msg() { jq -n --arg c "$1" '{messages:[{role:"user", content:$c}]}'; }
 echo "--- new game"; turn '{"messages":[],"new_game":{"name":"Tess","archetype":"warrior"}}'
 echo "--- vow";      turn "$(msg 'I promise Marta I will find Keeper Aldric.')"
 echo "--- to delta"; turn "$(msg 'I head out to the Delta Crossing.')"
+echo "--- lore probe"; turn "$(msg 'Why does the river flow in layers like that?')"
+if jq -e '[.output.turn.events[] | select(.type == "warning")] | length > 0' "$LAST" > /dev/null; then
+  echo "FAIL: a lore lookup failed (see the warning above): does the DM's service principal have SELECT on lore_index?" >&2
+  exit 1
+fi
+if ! jq -e '[.output.turn.events[] | select(.type == "lore")] | length > 0' "$LAST" > /dev/null; then
+  echo "FAIL: a question that needs the lorebooks got no lore lookup" >&2
+  exit 1
+fi
 echo "--- archive";  turn "$(msg 'I take the road upriver to the Unity Archive.')"
 echo "--- gate probe: straight to the Forge"; turn "$(msg 'Without waiting, I march straight off to the Spark Forge.')"
 if [ "$(location)" = "spark-forge" ]; then

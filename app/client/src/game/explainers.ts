@@ -15,6 +15,7 @@ export const EXPLAINERS: Record<string, Explainer> = {
   state: { title: 'State commit', text: 'Tools staged changes during the turn; they were written to Lakebase in a single transaction at the end, so the world never half-updates.', docs: 'https://docs.databricks.com/aws/en/oltp/', guide: 'state' },
   guardrail: { title: 'Guardrail', text: 'A Unity AI Gateway service policy screened the model call and blocked it. The DM refused in-world and never saw the blocked words again; no game state from the turn was saved.', docs: 'https://docs.databricks.com/aws/en/data-governance/unity-catalog/service-policies', guide: 'guardrails' },
   hint: { title: 'Hint', text: 'Hints are worked out by code from the campaign state (the next unfinished story beat), not by the model: always right, free, and they never use a turn.', docs: 'https://docs.databricks.com/aws/en/oltp/', guide: 'hints' },
+  warning: { title: 'Something failed', text: 'A tool the DM relied on failed this turn (for example a lore lookup), so the DM carried on without it. The trace has the full error.', docs: 'https://docs.databricks.com/aws/en/mlflow3/genai/tracing/', guide: 'rag' },
   load_state: { title: 'load_state', text: 'Load your save from Lakebase and recall memories before the DM thinks.', docs: 'https://docs.databricks.com/aws/en/oltp/' },
   dm_reason: { title: 'dm_reason', text: 'The model reasons about your action and decides which tools to call.', docs: AGENTS, guide: 'tracing' },
   tools: { title: 'tools', text: 'The requested tools run: dice, lore search, state changes.', docs: `${AGENTS}mcp-tools/` },
@@ -23,4 +24,4 @@ export const EXPLAINERS: Record<string, Explainer> = {
 };
 
 export const GRAPH = ['load_state', 'dm_reason', 'tools', 'commit_state', 'compose'];
-export const GLYPHS: Record<string, string> = { roll: '🎲', attack: '⚔️', lore: '📚', memory: '🧠', state: '💾', guardrail: '🛡', hint: '💡' };
+export const GLYPHS: Record<string, string> = { roll: '🎲', attack: '⚔️', lore: '📚', memory: '🧠', state: '💾', guardrail: '🛡', hint: '💡', warning: '⚠' };
