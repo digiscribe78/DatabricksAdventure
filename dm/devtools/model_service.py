@@ -10,7 +10,7 @@ import sys
 
 from devtools.grants import _run
 
-DESTINATION = "system.ai.databricks-claude-sonnet-4-5"
+DESTINATION = "system.ai.databricks-claude-sonnet-5"
 # How the CLI says a model service is missing (seen live: "Resource not found"; the rest are its other forms).
 _MISSING = re.compile(r"not found|does not exist|RESOURCE_DOES_NOT_EXIST|NOT_FOUND|\b404\b", re.IGNORECASE)
 
@@ -28,12 +28,29 @@ def create_body() -> dict:
                 "traffic_percentage": 100}]}}}
 
 
+def _destinations(got) -> list[str]:
+    try:
+        doc = json.loads(getattr(got, "stdout", "") or "{}")
+    except ValueError:
+        return []
+    return [d.get("name", "") for d in doc.get("config", {}).get("routing", {}).get("destinations", [])]
+
+
 def ensure_model_service(profile: str, catalog: str, schema: str, run=_run) -> bool:
-    """Create dm_model if it doesn't exist. Returns True when it was created."""
+    """Create dm_model if it doesn't exist, or repoint it at DESTINATION. Returns True when it was created.
+
+    Repointing keeps the service, so the guardrail policies attached to it stay attached.
+    """
     name = service_name(catalog, schema)
     try:
-        run(["databricks", "ai-gateway", "get-model-service", f"model-services/{name}",
-             "--profile", profile, "-o", "json"])
+        got = run(["databricks", "ai-gateway", "get-model-service", f"model-services/{name}",
+                   "--profile", profile, "-o", "json"])
+        current = _destinations(got)
+        if current and DESTINATION not in current:
+            run(["databricks", "ai-gateway", "update-model-service", f"model-services/{name}",
+                 "config.routing.destinations", "--json", json.dumps({"config": create_body()["config"]}),
+                 "--profile", profile, "-o", "json"])
+            print(f"model service {name}: repointed from {', '.join(current)} to {DESTINATION}")
         return False
     except RuntimeError as e:
         if not _MISSING.search(str(e)):

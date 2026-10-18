@@ -17,7 +17,7 @@ It's built to teach agent concepts on Databricks by playing.
 - permission to create Databricks Apps, Lakebase (Postgres) databases, AI Search endpoints, jobs and MLflow
   experiments;
 - a SQL warehouse (the default one is used for traces and grants);
-- access to the `system.ai` foundation models through AI Gateway (the DM uses `system.ai.claude-sonnet-4-5`).
+- access to the `system.ai` foundation models through AI Gateway (the DM uses `system.ai.claude-sonnet-5`).
 
 **Previews** to turn on in the workspace's **Previews** page:
 
@@ -94,7 +94,7 @@ guardrail policies. Never put hosts, tokens or emails in tracked files.
 
 - **Offline:** `make eval PROFILE=<profile> CATALOG=<catalog>` plays 28 seeded scenarios against the DM in-process
   and prints a report card from code scorers and LLM judges, logged to `/Shared/databricks-adventure/dm-evals`.
-  Add `EVAL_MODEL=system.ai.claude-sonnet-4-5` for the unguarded "before".
+  Add `EVAL_MODEL=system.ai.claude-sonnet-5` for the unguarded "before".
 - **Live:** `make monitoring PROFILE=<profile>` registers the same LLM judges (safety, in_character,
   player_agency) on `dm-traces` with MLflow production monitoring (Beta), so a sample of real turns is scored.
   - It needs the GenAI production-monitoring preview. Without it, the experiment's "Trace Metrics Computation
@@ -145,7 +145,7 @@ to". Never attach policies to the shared `system.ai` models: they would apply to
 account.
 
 To compare with and without guardrails, run `make eval` (guarded) and
-`make eval EVAL_MODEL=system.ai.claude-sonnet-4-5` (unguarded).
+`make eval EVAL_MODEL=system.ai.claude-sonnet-5` (unguarded).
 
 ## Things to try
 
