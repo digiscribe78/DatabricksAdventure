@@ -31,8 +31,10 @@ deployed DM with your own token.
 `make eval PROFILE=… CATALOG=…` plays the eval scenarios against the DM and prints its report card
 (needs the stack running). `make monitoring PROFILE=…` registers the same LLM judges (safety,
 in_character, player_agency) on the live traces in `dm-traces` (MLflow production monitoring, Beta), so a
-sample of real turns is scored too; results appear on the traces 15–20 minutes later. `make monitoring-stop`
-pauses it.
+sample of real turns is scored too. It needs the workspace's GenAI production-monitoring preview
+(Previews page); without it the experiment's "Trace Metrics Computation Job" fails with "This feature has not
+been enabled for this workspace". The job runs every 15 minutes, so scores appear on the traces within about
+20 minutes. `make monitoring-stop` pauses it.
 
 ## Turn on the guardrails
 
