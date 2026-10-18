@@ -100,6 +100,8 @@ guardrail policies. Never put hosts, tokens or emails in tracked files.
 
 ## How it works
 
+See [docs/architecture.md](docs/architecture.md) for diagrams of the whole system and of one turn.
+
 - **The DM** is a LangGraph agent (`dm/`) on Agent Runtime. Each turn runs through: `load_state` from
   Lakebase → `dm_reason` with tools (dice, combat, lore search, state changes, memory) → `commit_state` in
   one transaction → `compose` structured narration and choices.
