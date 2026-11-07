@@ -1,0 +1,23 @@
+# Captured from a production trace; fill in expect before relying on it.
+- id: captured-river-layers
+  category: lore
+  state:
+    location_id: delta-crossing
+    hp: 18
+    gold: 12
+    inventory:
+    - longsword (d6+2)
+    - rope
+    - shield
+    flags:
+      marta_trusts_you: 'yes'
+      vowed_to_find_aldric: 'yes'
+    dispositions:
+      the-sweeper: 0
+  history:
+  - I promise Marta I will find Keeper Aldric.
+  - I head out to the Delta Crossing.
+  input: Why does the river flow in layers like that?
+  expect:
+    tools: [search_lore]
+    guidelines: ["The DM explains the layered currents consistently with the lore of the river and its diversion."]

@@ -29,6 +29,19 @@ def choose_sessions(traces, min_turns: int) -> dict[str, list]:
     return dict(sorted(keep.items(), key=lambda kv: -max(t.info.timestamp_ms for t in kv[1])))
 
 
+def session_scores(trace) -> dict[str, tuple]:
+    """The session judges' verdicts, which MLflow attaches to the session's first trace."""
+    names = {j.name for j in JUDGES}
+    found = {}
+    for a in trace.info.assessments or []:
+        if a.name in names:
+            value = getattr(a, "value", None)
+            if value is None and getattr(a, "feedback", None) is not None:
+                value = a.feedback.value
+            found[a.name] = (value, getattr(a, "rationale", "") or "")
+    return found
+
+
 def main() -> int:
     import mlflow
 
@@ -44,12 +57,13 @@ def main() -> int:
         return 0
     mlflow.set_experiment(EXPERIMENT)
     result = mlflow.genai.evaluate(data=[t for ts in sessions.values() for t in ts], scorers=JUDGES)
-    df = result.result_df
     print(f"Whole adventures: {len(sessions)} sessions from the last {days} days")
-    for name in [j.name for j in JUDGES]:
-        col = f"{name}/value"
-        values = [v for v in df[col] if v is not None and v == v] if col in df else []
-        print(f"  {name:<26}{', '.join(str(v) for v in values) or 'n/a'}")
+    for session, ts in sessions.items():
+        first = mlflow.get_trace(min(ts, key=lambda t: t.info.timestamp_ms).info.trace_id)
+        turns = sum(t.info.trace_metadata.get("adventure.turn_kind") == "turn" for t in ts)
+        scores = session_scores(first)
+        line = " · ".join(f"{name} {scores[name][0]}" for name in (j.name for j in JUDGES) if name in scores)
+        print(f"  {session[:12]}…  {turns} turns  {line or 'not scored'}")
     print(f"\nFull results: MLflow experiment {EXPERIMENT}, run {result.run_id}.")
     return 0
 

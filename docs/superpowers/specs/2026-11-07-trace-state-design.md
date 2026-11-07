@@ -1,7 +1,7 @@
 # Databricks Adventure: Replayable Traces and Whole-Adventure Evals
 
 - **Date:** 2026-11-07
-- **Status:** Approved; to be implemented
+- **Status:** Implemented 2026-11-07. In the event, session-judge results aren't in `result_df`: MLflow attaches them to each session's first trace, so `make eval-sessions` reads them from there
 - **Builds on:** M6 evals (`2026-10-17-m6-evals-design.md`) and live monitoring.
 - **Prompted by:** review feedback that a trace's input is only the player's message. The DM's reply also depends on the saved game in Lakebase and the earlier turns, so a production trace can't be replayed on its own.
 

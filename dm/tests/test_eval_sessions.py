@@ -23,3 +23,14 @@ def test_sessions_with_enough_player_turns_are_kept_newest_first():
 def test_the_whole_adventure_judges():
     assert [j.name for j in JUDGES] == ["conversation_completeness", "user_frustration", "knowledge_retention"]
     assert all(j.is_session_level_scorer for j in JUDGES)
+
+
+def test_scores_are_read_from_the_sessions_first_trace():
+    from evals.sessions import session_scores
+
+    def a(name, value, why):
+        return SimpleNamespace(name=name, value=value, rationale=why)
+
+    t = SimpleNamespace(info=SimpleNamespace(assessments=[a("user_frustration", "resolved", "calm by the end"),
+                                                          a("safety", "yes", "not a session judge")]))
+    assert session_scores(t) == {"user_frustration": ("resolved", "calm by the end")}
