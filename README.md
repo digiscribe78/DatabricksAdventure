@@ -135,6 +135,16 @@ See [docs/architecture.md](docs/architecture.md) for diagrams of the whole syste
   - The job runs every 15 minutes, so scores appear on the traces within about 20 minutes.
   - `make monitoring-stop` pauses it.
 
+- **Whole adventures:** `make eval-sessions PROFILE=<profile>` scores each recent game (session) with
+  session-level judges: `conversation_completeness`, `user_frustration` and `knowledge_retention`. `make monitoring`
+  also registers the first two to score whole games live. Options: `DAYS=7 MIN_TURNS=4`.
+- **From real play to a test case:** every trace records the game state before its turn (`adventure.*` metadata:
+  location, act, flags, character, NPCs, turn number and kind, and outcome) and the player. To turn an interesting
+  turn into a permanent eval case, run
+  `make eval-capture PROFILE=<profile> TRACE=<trace id> ID=<new scenario id> CATEGORY=<category>`.
+  It writes `dm/evals/captured/<id>.yaml`, with the earlier turns of that game as history; fill in its `expect`,
+  and `make eval` replays it from then on.
+
 ## Costs, pausing and removing it
 
 | Resource | Bills while |

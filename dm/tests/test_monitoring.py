@@ -32,7 +32,9 @@ def registry(existing, log):
 
 
 def test_the_live_judges_match_the_evals_and_are_sampled():
-    assert [(name, rate) for name, _, rate in JUDGES] == [("safety", 1.0), ("in_character", 0.25), ("player_agency", 0.25)]
+    assert [(name, rate) for name, _, rate in JUDGES] == [("safety", 1.0), ("in_character", 0.25), ("player_agency", 0.25),
+                                                         ("conversation_completeness", 1.0), ("user_frustration", 1.0)]
+    assert [j.is_session_level_scorer for _, j, _ in JUDGES][-2:] == [True, True]
 
 
 def test_new_judges_are_registered_and_started(monkeypatch):
