@@ -10,6 +10,7 @@ from rpg.campaign import CANONICAL_FLAGS
 from rpg.world import ARCHETYPES, LOCATIONS
 
 SCENARIOS = Path(__file__).with_name("scenarios.yaml")
+CAPTURED = Path(__file__).with_name("captured")  # scenarios captured from production traces
 DICE_TOOLS = {"roll_check", "resolve_attack", "enemy_attack"}
 TOOL_NAMES = DICE_TOOLS | {"search_lore", "move_to", "set_quest_flag", "set_npc_disposition",
                            "update_character", "remember", "recall"}
@@ -88,3 +89,16 @@ def problems(s: Scenario, npc_homes: dict[str, str]) -> list[str]:
     found += [f"{npc} is not at {s.state.location_id}" for npc in s.state.dispositions
               if npc_homes.get(npc) != s.state.location_id]
     return found
+
+
+def load_all_scenarios(path: Path = SCENARIOS, captured: Path = CAPTURED) -> list[Scenario]:
+    """The main scenarios plus any captured from production traces (evals/captured/*.yaml)."""
+    scenarios = load_scenarios(path)
+    for f in sorted(captured.glob("*.yaml")) if captured.is_dir() else []:
+        scenarios += load_scenarios(f)
+    seen: set[str] = set()
+    for s in scenarios:
+        if s.id in seen:
+            raise ValueError(f"duplicate scenario id {s.id}")
+        seen.add(s.id)
+    return scenarios

@@ -12,7 +12,7 @@ import mlflow
 from dotenv import load_dotenv
 
 from evals.harness import make_predict_fn
-from evals.scenarios import Scenario, load_scenarios
+from evals.scenarios import Scenario, load_all_scenarios
 from evals.scorers import CODE_SCORERS, judges
 
 EXPERIMENT = "/Shared/databricks-adventure/dm-evals"
@@ -81,7 +81,7 @@ def main() -> int:
 
     from agent.agent import MODEL
 
-    scenarios = load_scenarios()
+    scenarios = load_all_scenarios()
     mlflow.set_tracking_uri("databricks")
     mlflow.set_experiment(EXPERIMENT)
     mlflow.langchain.autolog()
