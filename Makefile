@@ -9,7 +9,7 @@ INDEX = $(CATALOG).$(SCHEMA).lore_index
 EVAL_MODEL ?= $(CATALOG).$(SCHEMA).dm_model
 BUNDLE = databricks bundle --profile $(PROFILE) --var catalog=$(CATALOG) --var schema=$(SCHEMA)
 
-.PHONY: content deploy ingest db deploy-agent deploy-app app-dev grant-player memory-pipeline test eval guardrails-check monitoring monitoring-stop destroy check-vars
+.PHONY: content deploy ingest db deploy-agent deploy-app app-dev grant-player memory-pipeline test eval eval-capture eval-sessions guardrails-check monitoring monitoring-stop destroy check-vars
 
 check-vars:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
@@ -80,6 +80,20 @@ monitoring:
 monitoring-stop:
 	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
 	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) MLFLOW_DISABLE_AGENT_HINT=1 uv run python -m devtools.monitoring $(WAREHOUSE) stop
+
+# Turn a production trace into a replayable eval scenario: make eval-capture PROFILE=… TRACE=<id> ID=<new id> CATEGORY=<category>
+eval-capture:
+	@test -n "$(PROFILE)" -a -n "$(TRACE)" -a -n "$(ID)" -a -n "$(CATEGORY)" || (echo "Set PROFILE, TRACE, ID and CATEGORY" && exit 1)
+	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) MLFLOW_TRACING_SQL_WAREHOUSE_ID=$(WAREHOUSE) MLFLOW_DISABLE_AGENT_HINT=1 \
+		uv run python -m evals.from_traces $(TRACE) $(ID) $(CATEGORY)
+
+# Score whole adventures (sessions) from the last DAYS days with session-level judges.
+DAYS ?= 7
+MIN_TURNS ?= 4
+eval-sessions:
+	@test -n "$(PROFILE)" || (echo "Set PROFILE=<databricks-profile>" && exit 1)
+	cd dm && DATABRICKS_CONFIG_PROFILE=$(PROFILE) MLFLOW_TRACING_SQL_WAREHOUSE_ID=$(WAREHOUSE) MLFLOW_DISABLE_AGENT_HINT=1 \
+		DAYS=$(DAYS) MIN_TURNS=$(MIN_TURNS) uv run python -m evals.sessions
 
 guardrails-check: check-vars
 	cd dm && uv run python -m devtools.guardrails_check $(PROFILE) $(CATALOG) $(SCHEMA)

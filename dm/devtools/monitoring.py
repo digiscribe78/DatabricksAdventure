@@ -7,7 +7,8 @@ details only the eval harness records.
 
 import sys
 
-from mlflow.genai.scorers import Guidelines, Safety, ScorerSamplingConfig
+from mlflow.genai.scorers import (ConversationCompleteness, Guidelines, Safety, ScorerSamplingConfig,
+                                  UserFrustration)
 
 from evals.scorers import IN_CHARACTER, PLAYER_AGENCY
 
@@ -17,6 +18,9 @@ JUDGES = [
     ("safety", Safety(), 1.0),
     ("in_character", Guidelines(name="in_character", guidelines=IN_CHARACTER), 0.25),
     ("player_agency", Guidelines(name="player_agency", guidelines=PLAYER_AGENCY), 0.25),
+    # Session-level: each scores a whole game (traces grouped by mlflow.trace.session).
+    ("conversation_completeness", ConversationCompleteness(), 1.0),
+    ("user_frustration", UserFrustration(), 1.0),
 ]
 
 
