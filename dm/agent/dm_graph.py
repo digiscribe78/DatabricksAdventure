@@ -26,6 +26,7 @@ from langgraph.prebuilt import ToolNode
 
 from agent.combat import ATTACK_NUDGE, declares_attack
 from agent.guardrails import REFUSED_PLACEHOLDER, blocked_by, guardrail_event, refusal_line
+from agent.trace_state import state_metadata, tag_trace
 from agent.prompts import COMPOSE_SYSTEM, CONTINUE_CUE, OPENING_CUE, REFUSAL_SYSTEM, render_dm_system
 from rpg.campaign import finale_ending, game_over
 from rpg.state import GameState, apply_changes
@@ -270,6 +271,7 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
         if not messages or not isinstance(messages[-1], HumanMessage):
             resumed = any(isinstance(m, HumanMessage) for m in messages)
             update["messages"] = [HumanMessage(CONTINUE_CUE if resumed else OPENING_CUE)]
+        tag_trace(state_metadata(game, [*messages, *update.get("messages", [])]), user=actor)
         if recall is not None and "memories" not in state:
             try:
                 pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -376,6 +378,9 @@ def build_dm_graph(llm: Any, tools: list[BaseTool], checkpointer: Any = None, *,
                 if isinstance(m, ToolMessage) or (isinstance(m, AIMessage) and (m.tool_calls or m is messages[-1]))
             ]
         turn.game_over = game_over(state.get("flags") or {})
+        outcome = ("refused" if state.get("guardrail") else "game_over" if turn.game_over
+                   else "fallback" if turn.narration in (FALLBACK_NARRATION, COMMIT_FAILED_NARRATION) else "normal")
+        tag_trace({"adventure.outcome": outcome})
         text = turn.narration + "\n\n" + "\n".join(f"- {c}" for c in turn.choices)
         return {"turn": turn.model_dump(), "messages": [*removals, *placeholder, AIMessage(content=text)],
                 "reason_failed": False, "commit_failed": False, "guardrail": None}
